@@ -723,6 +723,95 @@ phase_mcp() {
   info "$mcps_configured MCP server(s) configured"
 }
 
+# ─── Phase: User-level skills & statusline ───────────────────────────────────
+
+phase_user_skills() {
+  section "User-Level Skills & Statusline"
+
+  echo "  These install to ~/.claude/ (global, not per-repo):"
+  echo ""
+  echo "  • mas-unit-test-runner        — run/fix/write WTR unit tests"
+  echo "  • nala-test-runner            — run/debug Nala E2E tests"
+  echo "  • extension-devtools-debugger — debug the MAS Studio Chrome extension"
+  echo "  • statusline                  — branch, port, Jira link, Local/Remote links"
+  echo ""
+
+  local install_user
+  install_user=$(prompt_yn "Install user-level skills and statusline?" "y")
+  if [ "$install_user" != "y" ]; then
+    return
+  fi
+
+  local user_skills_src="$SCRIPT_DIR/config/user-skills"
+  local user_skills_dest="$HOME/.claude/skills"
+  mkdir -p "$user_skills_dest"
+
+  for skill_dir in "$user_skills_src"/*/; do
+    local skill_name
+    skill_name=$(basename "$skill_dir")
+    local dest="$user_skills_dest/$skill_name"
+    if [ -d "$dest" ]; then
+      info "$skill_name already installed (skipped)"
+    else
+      mkdir -p "$dest"
+      cp -r "$skill_dir." "$dest/"
+      if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' \
+          -e "s|__MAS_DIR__|$MAS_DIR|g" \
+          -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
+          "$dest/SKILL.md" 2>/dev/null || true
+      else
+        sed -i \
+          -e "s|__MAS_DIR__|$MAS_DIR|g" \
+          -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
+          "$dest/SKILL.md" 2>/dev/null || true
+      fi
+      info "Installed skill: $skill_name"
+    fi
+  done
+
+  # Statusline
+  local statusline_dest="$HOME/.claude/statusline-command.sh"
+  if [ -f "$statusline_dest" ]; then
+    info "statusline already installed (skipped)"
+  else
+    cp "$SCRIPT_DIR/statusline-command.sh" "$statusline_dest"
+    chmod +x "$statusline_dest"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+      sed -i '' \
+        -e "s|__MAS_DIR__|$MAS_DIR|g" \
+        -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
+        "$statusline_dest"
+    else
+      sed -i \
+        -e "s|__MAS_DIR__|$MAS_DIR|g" \
+        -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
+        "$statusline_dest"
+    fi
+    local settings_path="$HOME/.claude/settings.json"
+    if [ -f "$settings_path" ]; then
+      python3 - "$statusline_dest" "$settings_path" <<'PYEOF'
+import json, sys
+statusline_path = sys.argv[1]
+settings_path = sys.argv[2]
+try:
+    with open(settings_path) as f:
+        s = json.load(f)
+except Exception:
+    s = {}
+s["statusLine"] = {"type": "command", "command": f"bash {statusline_path}"}
+with open(settings_path, "w") as f:
+    json.dump(s, f, indent=2)
+PYEOF
+      info "Statusline configured in ~/.claude/settings.json"
+    else
+      note "To enable statusline, add to ~/.claude/settings.json:"
+      note "  \"statusLine\": {\"type\": \"command\", \"command\": \"bash $statusline_dest\"}"
+    fi
+    info "Installed statusline"
+  fi
+}
+
 # ─── Phase: Worktrees ─────────────────────────────────────────────────────────
 
 phase_worktrees() {
@@ -820,6 +909,7 @@ case "$MODE" in
     phase_prerequisites
     phase_config
     INSTALLED_CONFIG=true
+    phase_user_skills
     phase_plugins
     INSTALLED_PLUGINS=true
     phase_mcp
@@ -829,6 +919,7 @@ case "$MODE" in
   config)
     phase_prerequisites
     phase_config
+    phase_user_skills
     info "Config installed."
     ;;
   plugins)
