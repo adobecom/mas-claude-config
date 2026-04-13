@@ -1,0 +1,602 @@
+#!/usr/bin/env bash
+# MAS worktree manager
+# Usage:
+#   wt new  <branch-or-pr-url> [env]   – create + install + fix git
+#   wt start <branch> [env]            – start AEM + proxy
+#   wt stop  <branch>                  – stop servers
+#   wt list                            – show all worktrees + status
+#   wt auth [branch]                   – patch auth session for worktree port
+#   wt test [branch] [playwright args] – run nala tests for a worktree
+#   wt mcp [start|stop|status] [port]  – manage local MCP HTTP server
+
+set -e
+
+# Resolve symlinks to find the real script location
+REAL_SCRIPT="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$0")"
+ADOBE_DIR="$(cd "$(dirname "$REAL_SCRIPT")/.." && pwd)"
+MAS_DIR="$ADOBE_DIR/mas"
+WORKTREES_DIR="$ADOBE_DIR/worktrees"
+PORTS_FILE="$WORKTREES_DIR/.ports"
+
+AEM_BASE=3000
+PROXY_BASE=8080
+
+aem_target() {
+    case "${1:-prod}" in
+        qa)      echo "https://author-p22655-e155390.adobeaemcloud.com" ;;
+        stage)   echo "https://author-p22655-e59471.adobeaemcloud.com" ;;
+        preview) echo "https://preview-p22655-e59433.adobeaemcloud.com" ;;
+        *)       echo "https://author-p22655-e59433.adobeaemcloud.com" ;;
+    esac
+}
+
+aem_works() {
+    local bin="$1"
+    [[ -x "$bin" || -L "$bin" ]] || return 1
+    local resolved
+    resolved="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$bin" 2>/dev/null)" || return 1
+    [[ -f "$resolved" ]] || return 1
+    return 0
+}
+
+activate_node() {
+    local dest="$1"
+    local nvmrc="$dest/.nvmrc"
+    [[ ! -f "$nvmrc" ]] && nvmrc="$MAS_DIR/.nvmrc"
+    local want="20"
+    [[ -f "$nvmrc" ]] && want="$(tr -d ' \n' < "$nvmrc")"
+
+    if [[ ! -s "$HOME/.nvm/nvm.sh" ]]; then
+        if command -v aem >/dev/null 2>&1 && aem_works "$(command -v aem)"; then
+            return 0
+        fi
+        echo "✗ nvm not found and 'aem' is not on PATH" >&2
+        exit 1
+    fi
+
+    # shellcheck disable=SC1091
+    set +e
+    . "$HOME/.nvm/nvm.sh"
+    set -e
+
+    local chosen=""
+    local tried=()
+
+    try_version() {
+        local v="$1"
+        set +e
+        nvm use "$v" >/dev/null 2>&1
+        local rc=$?
+        set -e
+        [[ $rc -ne 0 ]] && return 1
+        local bin
+        bin="$(command -v aem 2>/dev/null)"
+        [[ -z "$bin" ]] && return 1
+        aem_works "$bin" || return 1
+        chosen="$(node -v)"
+        return 0
+    }
+
+    if try_version "$want"; then
+        return 0
+    fi
+    tried+=("$want")
+
+    local candidate
+    for candidate in $(ls -1 "$HOME/.nvm/versions/node" 2>/dev/null | sed 's/^v//' | sort -rV); do
+        [[ " ${tried[*]} " == *" $candidate "* ]] && continue
+        if try_version "$candidate"; then
+            echo "→ .nvmrc requests node $want but 'aem' is broken there; using node $chosen" >&2
+            return 0
+        fi
+        tried+=("$candidate")
+    done
+
+    echo "✗ no installed node version has a working 'aem' CLI" >&2
+    echo "  tried: ${tried[*]}" >&2
+    echo "  install with: nvm use $want && npm i -g @adobe/aem-cli" >&2
+    exit 1
+}
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+ports_read() {
+    local branch="$1"
+    grep "^$branch=" "$PORTS_FILE" 2>/dev/null | cut -d= -f2
+}
+
+ports_write() {
+    local branch="$1" offset="$2"
+    touch "$PORTS_FILE"
+    grep -v "^$branch=" "$PORTS_FILE" > "$PORTS_FILE.tmp" && mv "$PORTS_FILE.tmp" "$PORTS_FILE"
+    echo "$branch=$offset" >> "$PORTS_FILE"
+}
+
+ports_next() {
+    local max=0  # offset 0 is reserved for main repo
+    while IFS='=' read -r _ offset; do
+        [[ "$offset" -gt "$max" ]] && max="$offset"
+    done < <(cat "$PORTS_FILE" 2>/dev/null)
+    echo $((max + 1))
+}
+
+pids_file() { echo "$WORKTREES_DIR/$1/.pids"; }
+
+git_fix() {
+    local branch="$1" dest="$WORKTREES_DIR/$branch"
+    local worktree_git="$MAS_DIR/.git/worktrees/$branch"
+    local sha
+    sha=$(git -C "$MAS_DIR" rev-parse "$branch")
+
+    rm -f "$dest/.git"
+    ln -s "$worktree_git" "$dest/.git"
+
+    echo "# pack-refs with: peeled fully-peeled sorted" > "$worktree_git/packed-refs"
+    echo "$sha refs/heads/$branch" >> "$worktree_git/packed-refs"
+    ln -sf "$MAS_DIR/.git/config" "$worktree_git/config"
+}
+
+patch_studio_html() {
+    local html="$1"
+    [[ ! -f "$html" ]] && return
+
+    # Patch proxy baseUrl: replace hardcoded localhost:8080 with dynamic port formula
+    if grep -q "localhost:8080" "$html"; then
+        python3 -c '
+import sys
+txt = open(sys.argv[1]).read()
+old = "baseUrl = '"'"'http://localhost:8080'"'"';"
+new = "const aemPort = parseInt(window.location.port || '"'"'3000'"'"', 10);\n                const proxyPort = params.get('"'"'proxy.port'"'"') || (aemPort + 5080);\n                baseUrl = `http://localhost:${proxyPort}`;"
+open(sys.argv[1], "w").write(txt.replace(old, new, 1))
+' "$html"
+    fi
+
+    # Patch IMS relay: route auth through localhost:3000 (registered redirect_uri) and bounce back
+    if ! grep -q "relayPort" "$html"; then
+        python3 -c "
+import sys
+txt = open(sys.argv[1]).read()
+
+relay_script = (
+    \"<script>\n\"
+    \"            // Relay check - redirect back to origin port if relayPort param + token in hash\n\"
+    \"            const relayPort = new URLSearchParams(window.location.search).get('relayPort');\n\"
+    \"            if (relayPort && window.location.hash.length > 1) {\n\"
+    \"                const url = new URL(window.location.href);\n\"
+    \"                url.hostname = 'localhost';\n\"
+    \"                url.port = relayPort;\n\"
+    \"                url.searchParams.delete('relayPort');\n\"
+    \"                window.location.replace(url.toString());\n\"
+    \"            }\n\"
+    \"        </script>\n\"
+    \"        \"
+)
+txt = txt.replace('<script type=\"importmap\">', relay_script + '<script type=\"importmap\">', 1)
+
+old_uri = 'redirect_uri: location.href.substring(0, location.href.length - location.hash.length),'
+new_uri = (
+    \"redirect_uri: (location.port && location.port !== '3000'\n\"
+    \"                    ? \`http://localhost:3000/studio.html?relayPort=\${location.port}\`\n\"
+    \"                    : location.href.substring(0, location.href.length - location.hash.length)),\"
+)
+txt = txt.replace(old_uri, new_uri, 1)
+
+open(sys.argv[1], 'w').write(txt)
+" "$html"
+    fi
+
+    # Fixup: remove broken hash-based conditions from already-patched files
+    python3 -c '
+import sys, re
+txt = open(sys.argv[1]).read()
+
+# Pattern A: simple ternary with access_token check
+txt = txt.replace(
+    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''access_token'\'')\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+)
+txt = txt.replace(
+    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''access_token'\'')\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+)
+
+# Pattern B: ternary with both id_token and access_token checks
+txt = txt.replace(
+    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\'')\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+)
+txt = txt.replace(
+    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\'')\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+)
+
+# Pattern C: IIFE variant with localRelayPort
+txt = txt.replace(
+    "if (location.port && location.port !== `${localRelayPort}` && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\''))",
+    "if (location.port && location.port !== `${localRelayPort}`)"
+)
+txt = txt.replace(
+    "if (location.port && location.port !== \\`${localRelayPort}\\` && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\''))",
+    "if (location.port && location.port !== \\`${localRelayPort}\\`)"
+)
+
+open(sys.argv[1], '\'w\'').write(txt)
+' "$html"
+}
+
+worktree_patch() {
+    local dest="$1"
+    local proxy="$dest/studio/proxy-server.mjs"
+
+    # Patch proxy: add PROXY_PORT env var support if missing
+    if [[ -f "$proxy" ]] && ! grep -q "PROXY_PORT" "$proxy"; then
+        sed -i '' \
+            's/serverPort = 8080;.*$/serverPort = parseInt(process.env.PROXY_PORT || '"'"'8080'"'"', 10);/' \
+            "$proxy"
+    fi
+
+    patch_studio_html "$dest/studio.html"
+}
+
+branch_from_arg() {
+    local arg="$1"
+    if [[ "$arg" =~ /pull/([0-9]+) ]]; then
+        local pr="${BASH_REMATCH[1]}"
+        local repo
+        repo=$(echo "$arg" | sed 's|https://github.com/||' | cut -d/ -f1-2)
+        gh pr view "$pr" --repo "$repo" --json headRefName -q .headRefName
+    else
+        echo "$arg"
+    fi
+}
+
+# ── commands ─────────────────────────────────────────────────────────────────
+
+cmd_new() {
+    local branch
+    branch=$(branch_from_arg "${1:?Usage: wt new <branch-or-pr-url>}")
+    local dest="$WORKTREES_DIR/$branch"
+
+    echo "→ branch: $branch"
+
+    if git -C "$MAS_DIR" fetch origin "$branch" 2>/dev/null; then
+        git -C "$MAS_DIR" worktree add "$dest" "$branch"
+    else
+        local base="${2:-main}"
+        echo "→ branch not on remote, creating from $base"
+        git -C "$MAS_DIR" worktree add -b "$branch" "$dest" "$base"
+    fi
+
+    git_fix "$branch"
+
+    local offset
+    offset=$(ports_next)
+    ports_write "$branch" "$offset"
+
+    worktree_patch "$dest"
+    patch_studio_html "$MAS_DIR/studio.html"
+
+    # Symlink node_modules from main repo so playwright/tools are available
+    if [[ ! -e "$dest/node_modules" ]]; then
+        ln -s "$MAS_DIR/node_modules" "$dest/node_modules"
+    fi
+
+    # Symlink workspace node_modules so builds resolve workspace-scoped packages
+    for ws in studio web-components io/studio; do
+        if [[ -d "$MAS_DIR/$ws/node_modules" ]] && [[ ! -e "$dest/$ws/node_modules" ]]; then
+            ln -s "$MAS_DIR/$ws/node_modules" "$dest/$ws/node_modules"
+        fi
+    done
+
+    # Symlink .env from main repo so Nala/Playwright picks up IMS credentials
+    if [[ ! -e "$dest/.env" ]]; then
+        ln -s "$MAS_DIR/.env" "$dest/.env"
+    fi
+
+    # Symlink .claude from main repo so Claude Code skills/agents/rules are available
+    if [[ ! -e "$dest/.claude" ]]; then
+        ln -s "$MAS_DIR/.claude" "$dest/.claude"
+    fi
+
+    # Symlink CLAUDE.md from main repo (gitignored, not copied by worktree)
+    if [[ ! -e "$dest/CLAUDE.md" ]]; then
+        ln -s "$MAS_DIR/CLAUDE.md" "$dest/CLAUDE.md"
+    fi
+
+    # Symlink specs from main repo so speckit project specs are shared
+    if [[ -d "$MAS_DIR/specs" ]] && [[ ! -e "$dest/specs" ]]; then
+        ln -s "$MAS_DIR/specs" "$dest/specs"
+    fi
+
+    # Symlink .specify from main repo so constitution and memory are shared
+    if [[ -d "$MAS_DIR/.specify" ]] && [[ ! -e "$dest/.specify" ]]; then
+        ln -s "$MAS_DIR/.specify" "$dest/.specify"
+    fi
+
+    echo "$branch" > "$HOME/.claude/active-worktree"
+
+    echo ""
+    echo "✓ $branch"
+    echo "  AEM:   http://localhost:$((AEM_BASE + offset))"
+    echo "  Proxy: http://localhost:$PROXY_BASE (shared)"
+    echo ""
+    echo "  wt start $branch"
+}
+
+cmd_start() {
+    local branch="${1:?Usage: wt start <branch> [env]}"
+    local env="${2:-prod}"
+    local dest="$WORKTREES_DIR/$branch"
+    [[ ! -d "$dest" ]] && echo "No worktree for $branch" && exit 1
+
+    echo "$branch" > "$HOME/.claude/active-worktree"
+
+    local offset
+    offset=$(ports_read "$branch")
+    [[ -z "$offset" ]] && offset=0
+
+    activate_node "$dest"
+
+    local aem_port=$((AEM_BASE + offset))
+    local target
+    target=$(aem_target "$env")
+
+    echo "→ starting $branch ($env)"
+    echo "  AEM:   http://localhost:$aem_port"
+    echo "  Proxy: http://localhost:$PROXY_BASE (shared) → $target"
+
+    lsof -ti:"$aem_port" | xargs kill -9 2>/dev/null || true
+
+    # Auto-fix .git if it's still a plain file (worktree created without wt new)
+    if [[ -f "$dest/.git" ]]; then
+        echo "→ fixing .git for AEM CLI compatibility"
+        git_fix "$branch"
+    fi
+
+    local log="$dest/.wt.log"
+    : > "$log"
+
+    if [[ "$offset" -eq 0 ]] && [[ -f "$dest/scripts/start-dev.mjs" ]]; then
+        # Main branch owns the shared proxy — run full dev server (AEM + proxy)
+        (cd "$dest" && npm run studio >>"$log" 2>&1) &
+        local pid=$!
+        sleep 1.5
+        if ! kill -0 "$pid" 2>/dev/null; then
+            echo "✗ dev server died immediately — last lines of $log:" >&2
+            tail -20 "$log" >&2
+            exit 1
+        fi
+        echo "$pid" > "$(pids_file "$branch")"
+        echo "→ pid: $pid"
+        echo "  Open:  http://localhost:$aem_port/studio.html"
+    else
+        # Worktree — AEM only, delegate proxy to shared :8080
+        (cd "$dest" && aem up --port "$aem_port" --no-open >>"$log" 2>&1) &
+        local aem_pid=$!
+        sleep 1.5
+        if ! kill -0 "$aem_pid" 2>/dev/null; then
+            echo "✗ aem up died immediately — last lines of $log:" >&2
+            tail -20 "$log" >&2
+            exit 1
+        fi
+        echo "$aem_pid" > "$(pids_file "$branch")"
+        echo "→ pid: $aem_pid (aem)"
+        echo "  Open:  http://localhost:$aem_port/studio.html?proxy.port=$PROXY_BASE"
+    fi
+
+    if ! lsof -ti:"$MCP_PORT" &>/dev/null; then
+        echo "  TIP:   run 'wt mcp' to start local MCP server"
+        echo "         then add &mcp.server=http://localhost:$MCP_PORT to the URL"
+    fi
+}
+
+cmd_stop() {
+    local branch="${1:?Usage: wt stop <branch>}"
+    local pids_f
+    pids_f=$(pids_file "$branch")
+
+    if [[ -f "$pids_f" ]]; then
+        while read -r pid; do
+            kill "$pid" 2>/dev/null && echo "→ killed $pid" || true
+        done < <(tr ' ' '\n' < "$pids_f")
+        rm -f "$pids_f"
+    fi
+
+    local offset
+    offset=$(ports_read "$branch")
+    if [[ -n "$offset" ]]; then
+        local kill_ports="$((AEM_BASE + offset))"
+        [[ "$offset" -eq 0 ]] && kill_ports="$kill_ports,$PROXY_BASE"
+        lsof -ti:"$kill_ports" | xargs kill -9 2>/dev/null || true
+    fi
+    echo "→ stopped $branch"
+}
+
+cmd_auth() {
+    local branch="${1:-}"
+    if [[ -z "$branch" ]]; then
+        local rel="${PWD#$WORKTREES_DIR/}"
+        branch="${rel%%/*}"
+    fi
+
+    local dest="$WORKTREES_DIR/$branch"
+    [[ ! -d "$dest" ]] && echo "No worktree for '$branch'" && exit 1
+
+    local offset
+    offset=$(ports_read "$branch")
+    [[ -z "$offset" ]] && offset=0
+    local aem_port=$((AEM_BASE + offset))
+    local new_origin="http://localhost:$aem_port"
+
+    local src="$MAS_DIR/nala/.auth/user.json"
+    [[ ! -f "$src" ]] && echo "No auth session at $src — run auth setup on main repo first" && exit 1
+
+    mkdir -p "$dest/nala/.auth"
+    rm -f "$dest/nala/.auth/user.json"
+
+    python3 - "$src" "$dest/nala/.auth/user.json" "$new_origin" <<'EOF'
+import json, sys
+src, dst, new_origin = sys.argv[1], sys.argv[2], sys.argv[3]
+data = json.load(open(src))
+ref = next((o for o in data.get('origins', []) if o['origin'] == 'http://localhost:3000'), None)
+if ref and not any(o['origin'] == new_origin for o in data['origins']):
+    data['origins'].append({'origin': new_origin, 'localStorage': ref['localStorage']})
+open(dst, 'w').write(json.dumps(data, indent=2))
+print(f'Patched: localhost:3000 → {new_origin}')
+EOF
+
+    echo "→ auth ready for $branch @ $new_origin"
+}
+
+cmd_test() {
+    local branch=""
+
+    # First arg is branch only if it's not a playwright flag
+    if [[ -n "$1" ]] && [[ "$1" != --* ]] && [[ "$1" != -* ]]; then
+        branch="$1"
+        shift
+    fi
+
+    # Auto-detect branch from cwd if not provided
+    if [[ -z "$branch" ]]; then
+        local rel="${PWD#$WORKTREES_DIR/}"
+        branch="${rel%%/*}"
+    fi
+
+    local dest="$WORKTREES_DIR/$branch"
+    [[ ! -d "$dest" ]] && echo "No worktree for '$branch'. Usage: wt test [branch] [playwright args]" && exit 1
+
+    local offset
+    offset=$(ports_read "$branch")
+    [[ -z "$offset" ]] && offset=0
+
+    local aem_port=$((AEM_BASE + offset))
+
+    # Ensure node_modules symlink exists
+    if [[ ! -e "$dest/node_modules" ]]; then
+        ln -s "$MAS_DIR/node_modules" "$dest/node_modules"
+    fi
+
+    # Export IMS credentials from mas/.env
+    if [[ -f "$MAS_DIR/.env" ]]; then
+        IMS_EMAIL=$(grep '^IMS_EMAIL=' "$MAS_DIR/.env" | cut -d= -f2- | tr -d '"')
+        IMS_PASS=$(grep '^IMS_PASS=' "$MAS_DIR/.env" | cut -d= -f2- | tr -d '"')
+        export IMS_EMAIL IMS_PASS
+    fi
+
+    # Patch auth session if missing or stale (>20h)
+    local auth_file="$dest/nala/.auth/user.json"
+    local stale=0
+    if [[ ! -f "$auth_file" ]]; then
+        stale=1
+    else
+        local age=$(( $(date +%s) - $(stat -f %m "$auth_file") ))
+        [[ "$age" -gt 72000 ]] && stale=1
+    fi
+    if [[ "$stale" -eq 1 ]]; then
+        cmd_auth "$branch"
+    fi
+
+    echo "→ nala: $branch @ http://localhost:$aem_port"
+
+    cd "$dest"
+    # Non-3000 ports use a patched user.json (via wt auth); skip the setup project re-run
+    local no_deps=""
+    [[ "$aem_port" -ne 3000 ]] && no_deps="--no-deps"
+    LOCAL_TEST_LIVE_URL="http://localhost:$aem_port" \
+        ./node_modules/.bin/playwright test $no_deps "$@"
+}
+
+cmd_list() {
+    printf "%-30s %8s %8s %6s\n" "BRANCH" "AEM" "PROXY" "STATUS"
+    printf "%-30s %8s %8s %6s\n" "------" "---" "-----" "------"
+
+    git -C "$MAS_DIR" worktree list --porcelain | awk '/^branch/ {print $2}' | sed 's|refs/heads/||' | while read -r branch; do
+        local offset
+        offset=$(ports_read "$branch")
+        [[ -z "$offset" ]] && offset=0
+        local aem_port=$((AEM_BASE + offset))
+        local status="stopped"
+        lsof -ti:"$aem_port" &>/dev/null && status="running"
+        printf "%-30s %8s %8s %6s\n" "$branch" ":$aem_port" ":$PROXY_BASE" "$status"
+    done
+}
+
+MCP_PORT=9000
+
+cmd_mcp() {
+    local action="${1:-start}"
+    local port="${2:-$MCP_PORT}"
+    local branch="${3:-}"
+
+    # Resolve MCP server directory: use worktree if specified, otherwise main
+    local mcp_dir="$MAS_DIR/mas-mcp-server"
+    if [[ -n "$branch" ]] && [[ -d "$WORKTREES_DIR/$branch/mas-mcp-server/src/http-server.js" ]]; then
+        mcp_dir="$WORKTREES_DIR/$branch/mas-mcp-server"
+    elif [[ -f "$mcp_dir/src/http-server.js" ]]; then
+        : # use main repo src version
+    fi
+
+    # Prefer src/http-server.js (worktree with full tools) over dist/http-server.js
+    local entry="src/http-server.js"
+    [[ ! -f "$mcp_dir/$entry" ]] && entry="dist/http-server.js"
+
+    case "$action" in
+        start)
+            if lsof -ti:"$port" &>/dev/null; then
+                echo "→ MCP server already running on :$port"
+                return
+            fi
+            echo "→ starting local MCP server on :$port"
+            (cd "$mcp_dir" && HTTP_PORT="$port" node "$entry") &
+            local pid=$!
+            echo "$pid" > "$WORKTREES_DIR/.mcp-pid"
+            echo "  PID:  $pid"
+            echo "  URL:  http://localhost:$port"
+            echo "  Use:  ?mcp.server=http://localhost:$port"
+            ;;
+        stop)
+            if [[ -f "$WORKTREES_DIR/.mcp-pid" ]]; then
+                kill "$(cat "$WORKTREES_DIR/.mcp-pid")" 2>/dev/null || true
+                rm -f "$WORKTREES_DIR/.mcp-pid"
+            fi
+            lsof -ti:"$port" | xargs kill -9 2>/dev/null || true
+            echo "→ stopped MCP server"
+            ;;
+        status)
+            if lsof -ti:"$port" &>/dev/null; then
+                echo "→ MCP running on :$port"
+            else
+                echo "→ MCP not running"
+            fi
+            ;;
+        *)
+            echo "Usage: wt mcp <start|stop|status> [port]"
+            ;;
+    esac
+}
+
+cmd_focus() {
+    local branch="${1:?Usage: wt focus <branch>}"
+    local dest="$WORKTREES_DIR/$branch"
+    [[ ! -d "$dest" ]] && echo "No worktree for $branch" && exit 1
+    echo "$branch" > "$HOME/.claude/active-worktree"
+    echo "→ focus: $branch"
+}
+
+# ── dispatch ──────────────────────────────────────────────────────────────────
+
+CMD="${1:-list}"
+shift || true
+
+case "$CMD" in
+    new)   cmd_new "$@" ;;
+    start) cmd_start "$@" ;;
+    stop)  cmd_stop "$@" ;;
+    list)  cmd_list ;;
+    auth)  cmd_auth "$@" ;;
+    test)  cmd_test "$@" ;;
+    mcp)   cmd_mcp "$@" ;;
+    focus) cmd_focus "$@" ;;
+    *)     echo "Usage: wt <new|start|stop|list|auth|test|mcp|focus> [args]"; exit 1 ;;
+esac

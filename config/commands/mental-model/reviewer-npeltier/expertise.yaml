@@ -1,0 +1,331 @@
+# npeltier — Reviewer Mental Model
+# Tech lead / architect of mas/io — review patterns from 90+ PR reviews
+#
+# USAGE: This file models npeltier's review behavior for pre-submission self-review
+# and expertise-informed PR planning. All claims backed by real PR citations.
+# Run /mental-model:reviewer-npeltier:self-improve to update from recent PR reviews.
+#
+# Data source: adobecom/mas PRs #455-#732 (~6 months, 90+ reviews)
+
+overview:
+  name: "Nicolas Peltier"
+  github: "npeltier"
+  role: "Tech lead / architect of mas/io (fragment delivery pipeline) and io/studio (translation/runtime actions)"
+  core_review_philosophy: >
+    Code must be minimal, correctly scoped, and reuse existing infrastructure.
+    Every PR should do exactly what its ticket says — no more, no less.
+    Shared logic belongs in common modules, not duplicated across boundaries.
+    Generated or throwaway code does not belong in the codebase.
+  review_intensity: "High — reads code deeply, questions architectural choices, tracks cross-PR consistency"
+  approval_style: >
+    Often approves with inline comments expecting future follow-up. Uses 'lgtm' for clean PRs.
+    Will block on scope creep or architectural concerns even if the code itself works.
+
+# --- OWNERSHIP MAP ---
+
+ownership_map:
+  primary_owner:
+    io/www/src/fragment/:
+      depth: "deep — reviews logic, naming, architecture, test coverage"
+      notes: "This is his domain. Expects all code here to follow his patterns."
+    io/studio/src/:
+      depth: "deep — especially translation/, common.js, state management"
+      notes: "Cares about centralizing state via state.js init/get pattern."
+    io/www/src/fragment/locales.js:
+      depth: "gatekeeper — treats internal constants as private API"
+      notes: "Will reject PRs that expose internals for convenience."
+  active_reviewer:
+    studio/src/:
+      depth: "architectural — focuses on splitting large files, factorizing, naming"
+    studio/src/aem/:
+      depth: "moderate — reviews fragment.js closely"
+    web-components/src/:
+      depth: "light — approves quickly, occasional questions"
+  peripheral:
+    nala/:
+      depth: "rubber-stamp"
+    .github/workflows/:
+      depth: "light — cares about CI coverage integration"
+
+# --- VALUES (ranked by enforcement frequency) ---
+
+values:
+  - name: "scope_discipline"
+    rank: 1
+    description: "PR does what the ticket says — nothing more, nothing less."
+    evidence:
+      - pr: 642
+        quote: "your ticket is not supposed to fix a problem with parallel settings requests... it deserves much more attention (so specific JIRA & PR)"
+      - pr: 547
+        quote: "This is a very big change wrt to what it is supposed to fix, no? Are sidenav changes necessary for this ticket?"
+      - pr: 727
+        quote: "please remove tagFilters, this is for sidenav so not related"
+      - pr: 705
+        quote: "blocked localStorage change unrelated to PR topic"
+
+  - name: "factorization_and_reuse"
+    rank: 2
+    description: "Use existing utilities, extract repeated logic into shared modules."
+    evidence:
+      - pr: 547
+        quote: "Can we factorize field equality in one method?"
+      - pr: 598
+        quote: "don't we have that regexp already in other places?"
+      - pr: 732
+        quote: "this could be in common?"
+      - pr: 726
+        quote: "i would use state.js init & get method, to centralise state management"
+      - pr: 598
+        quote: "there is PATH_TOKENS that exist (and you created a util you don't use)"
+
+  - name: "no_dead_or_throwaway_code"
+    rank: 3
+    description: "No one-off scripts, generated verbosity, or unused code paths."
+    evidence:
+      - pr: 598
+        quote: "i don't want code in that codebase i don't need to review"
+      - pr: 598
+        quote: "this code keeps on being updated while not used at all for now..."
+      - pr: 705
+        quote: "it looks _very_ verbose. I guess you generated them, right? i would rather try to only keep carefully generated real code"
+
+  - name: "precise_naming"
+    rank: 4
+    description: "Names must accurately reflect what the code does. Full words over abbreviations."
+    evidence:
+      - pr: 636
+        quote: "getPznVariations or getPersonalizationVariations, please. There can be other kind of variations"
+      - pr: 726
+        quote: "would rename it to project request or something? service sounds like it's all done"
+      - pr: 598
+        quote: "what is this about? i find icons file name a bit misleading"
+      - pr: 647
+        quote: "can we rename to siDenav?"
+
+  - name: "architectural_boundaries"
+    rank: 5
+    description: "Respect module boundaries, don't leak internals, split large files."
+    evidence:
+      - pr: 598
+        quote: "idea behind _not_ exporting those constants is to prevent future developers from not going through locales.js apis"
+      - pr: 682
+        quote: "problem with separate common module is deployment...deserves a separate conversation"
+      - pr: 598
+        quote: "we should really consider splitting the fragment core utility from the model"
+
+  - name: "correct_error_semantics"
+    rank: 6
+    description: "HTTP status codes and error types must be semantically correct."
+    evidence:
+      - pr: 552
+        quote: "it should return 400 or 403... but it's not a server error"
+      - pr: 518
+        quote: "nit: this should be 401"
+      - pr: 581
+        quote: "rejected using error message string as logical control flow"
+
+  - name: "observability"
+    rank: 7
+    description: "Measure what matters. Add timing, logging context, track performance."
+    evidence:
+      - pr: 726
+        quote: "suggested adding performance timing measurement with mark/measureTiming"
+      - pr: 559
+        quote: "maybe add project id / path?"
+      - pr: 595
+        quote: "asked about number of ODIN calls to measure cache impact"
+
+# --- RED FLAGS ---
+
+red_flags:
+  - pattern: "scope_creep"
+    severity: "blocking"
+    trigger: "Any change not traceable to the PR's ticket"
+    example_pr: 642
+    typical_comment: "your ticket is not supposed to fix a problem with parallel settings requests"
+
+  - pattern: "duplicating_existing_logic"
+    severity: "blocking"
+    trigger: "New utility when equivalent exists"
+    example_pr: 598
+    typical_comment: "there is PATH_TOKENS that exist (and you created a util you don't use)"
+
+  - pattern: "exporting_private_internals"
+    severity: "blocking"
+    trigger: "Making internal constants public for convenience"
+    example_pr: 598
+    typical_comment: "idea behind _not_ exporting those constants is to prevent future developers from not going through locales.js apis"
+
+  - pattern: "one_off_scripts_in_repo"
+    severity: "blocking"
+    trigger: "Throwaway code committed to the codebase"
+    example_pr: 598
+    typical_comment: "i don't want code in that codebase i don't need to review"
+
+  - pattern: "giant_pr_touching_core"
+    severity: "soft_block"
+    trigger: "Large diff on core files beyond ticket scope"
+    example_pr: 547
+    typical_comment: "I am scared about regressions here"
+
+  - pattern: "wrong_error_semantics"
+    severity: "change_requested"
+    trigger: "Incorrect HTTP status codes"
+    example_pr: 552
+    typical_comment: "it should return 400 or 403... but it's not a server error"
+
+  - pattern: "untestable_code_paths"
+    severity: "soft_block"
+    trigger: "Feature code that can't be tested or demoed"
+    example_pr: 519
+    typical_comment: "will we be able to test & demo that code?"
+
+  - pattern: "adding_nala_label_prematurely"
+    severity: "immediate_correction"
+    trigger: "run-nala label before 2 approvals"
+    example_pr: 580
+    typical_comment: "do not add run-nala label before 2 approvals"
+
+# --- GREEN FLAGS ---
+
+green_flags:
+  - pattern: "reusing_existing_utilities"
+    signal: "heart emoji"
+    example_pr: 636
+    note: "heart on getTargetPath using PATH_TOKENS"
+
+  - pattern: "removing_code"
+    signal: "approval without pushback"
+    example_pr: 674
+    note: "since it's removing code, i won't rant"
+
+  - pattern: "small_focused_prs"
+    signal: "fast lgtm"
+    example_pr: 669
+    note: "looks good to me — simple removal"
+
+  - pattern: "clean_separations"
+    signal: "explicit praise"
+    example_pr: 516
+    note: "looks great to me!"
+
+  - pattern: "addressing_feedback_thoroughly"
+    signal: "quick CHANGES_REQUESTED to approval flip"
+    example_pr: 547
+
+  - pattern: "css_cleanup"
+    signal: "heart emoji"
+    example_pr: 682
+
+# --- REVIEW VOCABULARY ---
+
+review_vocabulary:
+  blocking:
+    - phrase: "i'm uncomfortable with that change"
+      meaning: "Hard block. Will not approve without rework."
+      example_pr: 642
+    - phrase: "i'm sorry, but"
+      meaning: "Hard block delivered politely. Needs significant rework."
+      example_pr: 681
+    - phrase: "this deserves much more attention (so specific JIRA & PR)"
+      meaning: "Out of scope. Open a new ticket."
+      example_pr: 642
+    - phrase: "can we discuss in the team"
+      meaning: "Decision too big for PR review. Needs team alignment."
+      example_pr: 510
+
+  soft_blocking:
+    - phrase: "i would rather"
+      meaning: "Strong preference, negotiable if argued well."
+      example_pr: 705
+    - phrase: "i would for now leave X aside"
+      meaning: "Don't implement this yet. Defer."
+      example_pr: 519
+    - phrase: "please consider"
+      meaning: "Rethink your approach."
+      example_pr: 553
+
+  approval:
+    - phrase: "lgtm"
+      meaning: "Clean approval, no concerns."
+    - phrase: "looks good to me"
+      meaning: "Clean approval, no concerns."
+    - phrase: "beside cosmetics remarks"
+      meaning: "Approved — inline comments are suggestions only."
+    - phrase: "consider my comments as nitpicking"
+      meaning: "Approved. Take-or-leave feedback."
+    - phrase: "let's treat all my non addressed comments later"
+      meaning: "Approved to unblock, but he's tracking those items."
+
+  neutral:
+    - phrase: "i'm not sure why you are touching X"
+      meaning: "Explain the connection or remove it. Could escalate."
+      example_pr: 674
+    - phrase: "can you explain what that is about?"
+      meaning: "Code is unclear. He read it multiple times."
+      example_pr: 727
+    - phrase: "just ranting"
+      meaning: "Acknowledging a known problem. Not blocking."
+      example_pr: 598
+    - phrase: "not agreed yet"
+      meaning: "Needs broader team discussion, not just his approval."
+      example_pr: 705
+
+# --- DOMAIN OPINIONS ---
+
+domain_opinions:
+  - topic: "state_management"
+    stance: "Centralize in state.js via init/get pattern. Components are stateless renderers."
+    evidence: "PR #726, PR #481"
+
+  - topic: "locales_as_private_module"
+    stance: "Public API only. Never export internals."
+    evidence: "PR #598"
+
+  - topic: "shared_code_in_common"
+    stance: "Cross-boundary logic in common modules (but mind deployment coupling)."
+    evidence: "PR #732, PR #726, PR #682"
+
+  - topic: "split_large_files"
+    stance: "mas-repository.js, mas-fragment-editor.js, fragment.js are too big."
+    evidence: "PR #598, PR #547"
+
+  - topic: "deployment_independence"
+    stance: "io/www and io/studio deploy independently. Never assume otherwise."
+    evidence: "PR #682"
+
+  - topic: "content_modeling_over_code"
+    stance: "Solve with AEM content models before adding code complexity."
+    evidence: "PR #681"
+
+  - topic: "settings_should_be_generic"
+    stance: "No model-specific treatment in settings system."
+    evidence: "PR #705, PR #553"
+
+  - topic: "cache_resilience_over_freshness"
+    stance: "Resilient cache + cache-killers over weak caching strategies."
+    evidence: "PR #595"
+
+  - topic: "fix_at_source_not_consumer"
+    stance: "Fix bugs at the store/repository level, not in individual consumers/templates."
+    evidence: "Pattern from review-pr.md architectural correctness section"
+
+  - topic: "io_folder_is_restricted"
+    stance: "Do not touch io/ unless strictly necessary. This is his domain and he expects changes here to have strong justification, a specific JIRA, and his explicit approval."
+    evidence: "Direct request from npeltier (2026-04-02). io/www and io/studio are his primary ownership areas."
+
+# --- GOTCHAS ---
+
+gotchas:
+  - "Approvals with outstanding comments are NOT final — he tracks inline comments and expects follow-up PRs."
+  - "Heart emoji is genuine sparse praise — used for reuse of existing utilities or clean deletions."
+  - "He reviews PR descriptions before code — missing context gets called out before he looks at the diff."
+  - "He may close PRs that overlap with his in-flight work — check with him if touching io/www transformers, settings, or locales."
+  - "'prefer small PR' is a standing requirement — enforced by blocking oversized PRs touching core modules."
+  - "Functional test vs visual test distinction — if your nala test asserts behavior of another module, he'll flag it."
+  - "Generated code gets extra scrutiny — if he suspects AI-generated code, he'll call it out."
+  - "He sometimes re-reviews after approval — don't assume initial approval is final."
+  - "Fix dependabot properly — they only update package-lock.json, fix transitive dependency in package.json instead."
+  - "He uses screenshots in reviews — expects the same for visual changes."
+  - "'not agreed yet' means team discussion needed — don't try to convince him individually."
+  - "Naming can be the sole blocker — PR #647 was blocked solely for 'sidenav' vs 'siDenav' casing."

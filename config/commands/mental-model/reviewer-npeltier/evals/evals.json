@@ -1,0 +1,39 @@
+{
+  "model": "reviewer-npeltier",
+  "command": "question",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I'm adding a localStorage fix to a skeleton shimmer PR. Would npeltier approve?",
+      "expected_output": "Should identify scope_discipline violation, cite PR #642, recommend splitting into separate JIRA and PR.",
+      "assertions": [
+        { "text": "Does NOT create or modify any files" },
+        { "text": "References scope_discipline as rank 1 value" },
+        { "text": "Cites PR #642 as evidence of blocking scope creep" },
+        { "text": "Recommends splitting the fix into a separate ticket and PR" }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I'm writing a new function to extract locale from a path string. Is this safe to submit?",
+      "expected_output": "Should identify factorization_and_reuse violation, reference PATH_TOKENS in paths.js, warn about duplicating existing logic.",
+      "assertions": [
+        { "text": "Does NOT create or modify any files" },
+        { "text": "References factorization_and_reuse as rank 2 value" },
+        { "text": "Mentions PATH_TOKENS or existing path utilities as alternatives" },
+        { "text": "Warns that duplicating existing logic is a blocking red_flag" }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "npeltier said 'i'm uncomfortable with that change' on my PR. How serious is this?",
+      "expected_output": "Should decode using review_vocabulary blocking phrases, explain this is a hard block requiring rework.",
+      "assertions": [
+        { "text": "Does NOT create or modify any files" },
+        { "text": "Identifies the phrase as a blocking review_vocabulary entry" },
+        { "text": "Explains it means hard block requiring rework, not a suggestion" },
+        { "text": "References PR #642 as an example where this phrase was used" }
+      ]
+    }
+  ]
+}

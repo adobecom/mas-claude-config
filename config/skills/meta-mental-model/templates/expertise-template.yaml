@@ -1,0 +1,60 @@
+# {{DOMAIN}} Implementation Expertise
+# {{TAGLINE}}
+#
+# USAGE: This file is the mental model for all {{DOMAIN}}-related tasks.
+# Every file path, function name, and pattern must be verified against the real codebase.
+# Run /mental-model:{{DOMAIN}}:self-improve after any {{DOMAIN}} changes to keep it current.
+
+overview:
+  description: "{{ONE_SENTENCE_DESCRIPTION}}"
+  core_insight: "{{KEY_ARCHITECTURAL_INSIGHT}}"
+  architecture_pattern: "{{DOMINANT_PATTERN}}"
+  value_proposition:
+    - "{{VALUE_1}}"
+    - "{{VALUE_2}}"
+
+# --- KEY FILES ---
+
+key_files:
+  {{GROUP_1}}:
+    {{name_1}}:
+      file: "{{relative/path/to/file.js}}"
+      purpose: "{{what it does}}"
+      key_functions:
+        {{fn_name}}: "{{signature and what it does}}"
+
+# --- PATTERNS ---
+
+patterns:
+  {{pattern_name}}: |
+    {{Step-by-step pattern description with code snippets.}}
+
+# --- DATA SHAPES ---
+
+data_shapes:
+  {{shape_name}}:
+    fields:
+      - "{{field_name}} ({{type}}): {{description}}"
+
+# --- INTEGRATION POINTS ---
+
+integration_points:
+  {{target_domain}}:
+    how: "{{description of how they connect}}"
+    key_contract: "{{the interface/shape/protocol}}"
+
+# --- GOTCHAS ---
+
+gotchas:
+  - "{{Specific wrong assumption -> correct behavior}}"
+
+# --- BEST PRACTICES ---
+
+best_practices:
+  - "{{Verified pattern from actual codebase}}"
+
+# --- KEY FILE LOCATIONS ---
+
+key_file_locations:
+  {{category}}:
+    {{label}}: "{{relative/path}}"

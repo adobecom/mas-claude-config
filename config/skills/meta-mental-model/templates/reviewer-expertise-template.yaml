@@ -1,0 +1,81 @@
+# {{NAME}} — Reviewer Mental Model
+# {{TAGLINE}}
+#
+# USAGE: This file models the review behavior of {{NAME}} ({{GITHUB}}).
+# Run /mental-model:reviewer-{{GITHUB}}:self-improve to update from recent PR reviews.
+
+overview:
+  name: "{{FULL_NAME}}"
+  github: "{{GITHUB}}"
+  role: "{{ROLE_DESCRIPTION}}"
+  core_review_philosophy: >
+    {{PHILOSOPHY}}
+  review_intensity: "{{INTENSITY}}"
+  approval_style: "{{APPROVAL_STYLE}}"
+
+# --- OWNERSHIP MAP ---
+# Which directories they review and how deeply.
+
+ownership_map:
+  primary_owner:
+    {{path/}}: { depth: "deep", notes: "{{notes}}" }
+  active_reviewer:
+    {{path/}}: { depth: "{{depth}}", notes: "{{notes}}" }
+  peripheral:
+    {{path/}}: { depth: "{{depth}}" }
+
+# --- VALUES ---
+# Ranked principles enforced during review, backed by PR evidence.
+
+values:
+  - name: "{{value_name}}"
+    rank: {{N}}
+    description: "{{what they enforce}}"
+    evidence:
+      - pr: {{PR_NUMBER}}
+        quote: "{{exact reviewer quote}}"
+
+# --- RED FLAGS ---
+# Patterns that guarantee CHANGES_REQUESTED or strong pushback.
+
+red_flags:
+  - pattern: "{{what triggers it}}"
+    severity: "{{blocking|soft_block|change_requested}}"
+    example_pr: {{PR_NUMBER}}
+    typical_comment: "{{what they say}}"
+
+# --- GREEN FLAGS ---
+# Patterns that earn fast approvals or explicit praise.
+
+green_flags:
+  - pattern: "{{what earns approval}}"
+    signal: "{{how they express approval}}"
+    example_pr: {{PR_NUMBER}}
+
+# --- REVIEW VOCABULARY ---
+# Decoder ring: what they say vs what they mean.
+
+review_vocabulary:
+  blocking:
+    - phrase: "{{exact phrase}}"
+      meaning: "{{what it really means}}"
+  soft_blocking:
+    - phrase: "{{exact phrase}}"
+      meaning: "{{what it really means}}"
+  approval:
+    - phrase: "{{exact phrase}}"
+      meaning: "{{what it really means}}"
+
+# --- DOMAIN OPINIONS ---
+# Strong architectural stances with reasoning.
+
+domain_opinions:
+  - topic: "{{topic_name}}"
+    stance: "{{what they believe}}"
+    evidence: "{{PR or pattern that proves it}}"
+
+# --- GOTCHAS ---
+# Non-obvious behaviors about their review style.
+
+gotchas:
+  - "{{Non-obvious fact about how they review}}"

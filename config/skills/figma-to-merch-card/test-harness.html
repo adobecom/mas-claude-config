@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>express-ai — Visual Validation</title>
+    <script type="module" src="./mas.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 80px 40px;
+            font-family: 'Adobe Clean', adobe-clean, 'Trebuchet MS', sans-serif;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Uses MAS grid class convention: .{count}.{variant} -->
+    <!-- The variant's global CSS defines grid-template-columns for each combination -->
+    <div class="three-merch-cards express-ai" style="
+        display: grid;
+        justify-content: center;
+        justify-items: stretch;
+        gap: var(--consonant-merch-spacing-m, 32px);
+        padding: var(--spacing-m, 32px);
+    ">
+        <!-- Card 1: Adobe Express Free -->
+        <merch-card variant="express-ai">
+            <h3 slot="heading-xs">Adobe Express Free</h3>
+            <div slot="body-xs">
+                <p>Basic content creation tools, limited generative AI credits and assets.</p>
+            </div>
+            <div slot="icons">
+                <img src="https://www.adobe.com/content/dam/shared/images/product-icons/svg/cc-express.svg" alt="Express" width="24" height="24">
+            </div>
+            <p slot="heading-m">
+                <span class="price"><span class="price-currency-symbol">US$</span><span class="price-integer">0</span><span class="price-decimals-delimiter">.</span><span class="price-decimals">00</span><span class="price-recurrence">/month</span></span>
+            </p>
+            <p slot="body-xxs">Free to use. No credit card required.</p>
+            <div slot="footer">
+                <a href="#" class="con-button primary">Get free plan</a>
+            </div>
+        </merch-card>
+
+        <!-- Card 2: Adobe Express Premium -->
+        <merch-card variant="express-ai">
+            <h3 slot="heading-xs">Adobe Express Premium</h3>
+            <div slot="body-xs">
+                <p>Access millions of assets, more AI credits, and premium tools.</p>
+            </div>
+            <div slot="icons">
+                <img src="https://www.adobe.com/content/dam/shared/images/product-icons/svg/cc-express.svg" alt="Express" width="24" height="24">
+            </div>
+            <p slot="heading-m">
+                <span class="price"><span class="price-currency-symbol">US$</span><span class="price-integer">9</span><span class="price-decimals-delimiter">.</span><span class="price-decimals">99</span><span class="price-recurrence">/month</span></span>
+            </p>
+            <p slot="body-xxs">No annual commitment, billed monthly.</p>
+            <div slot="footer">
+                <a href="#" class="con-button accent">Start 30-day free trial</a>
+            </div>
+        </merch-card>
+
+        <!-- Card 3: Adobe Firefly Pro (with gradient badge) -->
+        <merch-card variant="express-ai"
+            badge-background-color="linear-gradient(96deg, #d73220 0%, #d92361 33%, #7155fa 100%)"
+            badge-color="#ffffff"
+            badge-text="Best value">
+            <h3 slot="heading-xs">Adobe Firefly Pro</h3>
+            <div slot="body-xs">
+                <p>Get Adobe Express Premium plus 4,000 credits for creative AI and Adobe Photoshop on web and mobile for advanced image editing.</p>
+            </div>
+            <div slot="icons">
+                <img src="https://www.adobe.com/content/dam/shared/images/product-icons/svg/cc-express.svg" alt="Express" width="24" height="24">
+                <img src="https://www.adobe.com/content/dam/shared/images/product-icons/svg/firefly.svg" alt="Firefly" width="24" height="24">
+                <img src="https://www.adobe.com/content/dam/cc/icons/photoshop.svg" alt="Photoshop" width="24" height="24">
+            </div>
+            <p slot="heading-m">
+                <span class="price"><span class="price-currency-symbol">US$</span><span class="price-integer">19</span><span class="price-decimals-delimiter">.</span><span class="price-decimals">99</span><span class="price-recurrence">/month</span></span>
+            </p>
+            <p slot="body-xxs">No annual commitment, billed monthly.</p>
+            <div slot="footer">
+                <a href="#" class="con-button accent">Start 7-day free trial</a>
+            </div>
+        </merch-card>
+    </div>
+</body>
+</html>

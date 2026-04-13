@@ -1,0 +1,39 @@
+{
+  "model": "{{MODEL_NAME}}",
+  "command": "question",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "{{EVAL_1_PROMPT — question requiring domain/reviewer-specific knowledge}}",
+      "expected_output": "{{EVAL_1_EXPECTED — what a correct answer should cover}}",
+      "assertions": [
+        { "text": "Does NOT create or modify any files" },
+        { "text": "{{ASSERTION — references specific data from expertise.yaml}}" },
+        { "text": "{{ASSERTION — cites evidence (file path or PR number)}}" },
+        { "text": "{{ASSERTION — explains the reasoning or flow}}" }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "{{EVAL_2_PROMPT — question testing gotcha/non-obvious behavior}}",
+      "expected_output": "{{EVAL_2_EXPECTED — correct explanation including root cause}}",
+      "assertions": [
+        { "text": "Does NOT create or modify any files" },
+        { "text": "{{ASSERTION — identifies the specific gotcha}}" },
+        { "text": "{{ASSERTION — cites the correct behavior or fix}}" },
+        { "text": "{{ASSERTION — describes the observable symptom}}" }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "{{EVAL_3_PROMPT — 'how would I...' question testing pattern knowledge}}",
+      "expected_output": "{{EVAL_3_EXPECTED — walkthrough referencing correct pattern}}",
+      "assertions": [
+        { "text": "Does NOT create or modify any files" },
+        { "text": "{{ASSERTION — references correct pattern from expertise.yaml}}" },
+        { "text": "{{ASSERTION — mentions correct file paths or constraints}}" },
+        { "text": "{{ASSERTION — explains a key detail that baseline agents miss}}" }
+      ]
+    }
+  ]
+}
