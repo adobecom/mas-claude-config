@@ -11,7 +11,7 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 | Component | Count | What it does |
 |-----------|-------|--------------|
 | Coding rules | 16 files | Conventions for Lit, Spectrum, fragments, testing, git workflow |
-| Skills | 22 | `/start-ticket`, `/review-pr`, `/nala`, `/build-swc`, `/sync-with-main`, ... |
+| Skills | 22 | `/start-ticket`, `/review-pr`, `/nala-writer`, `/nala-runner`, `/build-swc`, `/sync-with-main`, ... |
 | Commands | 13 | `/audit-changes`, `/mas-lint-fix`, `/mas-test`, `/tickets`, ... |
 | Agents | 16 | Specialized agents for fragment ops, NALA authoring, card development, ... |
 | Hooks | 13 scripts | ESLint + Prettier on save, session tracking, graphify freshness checks |
@@ -75,10 +75,13 @@ The wizard sets up the following MCP servers:
 - **Setup:** Points to `mas/mas-mcp-server/`. The wizard builds it if needed.
 - **Note:** Requires separate IMS authentication: `cd mas/mas-mcp-server && npm run auth`
 
-### nala-mcp
-- **Purpose:** AI-powered NALA test generation and debugging
-- **Used by:** `/nala-writer`, `/nala-runner`, test generation
-- **Setup:** Cloned from `adobecom/nala-mcp`, no tokens needed
+### FluffyJaws
+- **Purpose:** Search Adobe internal Slack, wiki, Jira, AEM docs, pipelines, and tenants
+- **Used by:** `/start-ticket` context gathering, AEM/Adobe questions
+- **Setup:** Requires the `fj` CLI (Adobe internal — get it from `go/fluffyjaws` or a teammate). The wizard runs `fj login` if not authenticated.
+- **Note:** If `fj` isn't installed yet, the wizard will print instructions. Re-run `./install.sh --mcp-only` after installing.
+
+> **NALA:** The nala skills (`/nala-writer`, `/nala-runner`, `/nala`) are included in the config bundle and work without any MCP server.
 
 ## Updating
 

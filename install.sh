@@ -660,41 +660,42 @@ phase_mcp() {
 
   echo ""
 
-  # ── 4. nala-mcp ──────────────────────────────────────────────────────────────
-  echo -e "  ${BOLD}4/4  NALA MCP${NC}"
-  note "  AI-powered test generation and debugging for NALA E2E tests."
-  note "  Used by: /nala-writer, /nala-runner, test generation commands"
+  # ── 4. FluffyJaws ────────────────────────────────────────────────────────────
+  echo -e "  ${BOLD}4/4  FluffyJaws (Adobe internal knowledge)${NC}"
+  note "  Searches Slack, wiki, Jira, AEM docs, and pipeline infrastructure."
+  note "  Used by: /start-ticket context gathering, AEM/Adobe questions"
   echo ""
 
-  local setup_nala
-  setup_nala=$(prompt_yn "Configure nala-mcp?" "y")
-  if [ "$setup_nala" = "y" ]; then
-    local nala_mcp_dir="$ADOBE_DIR/nala-mcp"
-    if [ ! -d "$nala_mcp_dir" ]; then
-      step "Cloning adobecom/nala-mcp..."
-      git clone --quiet https://github.com/adobecom/nala-mcp.git "$nala_mcp_dir"
-      step "Building..."
-      (cd "$nala_mcp_dir" && npm install --silent && npm run build --silent 2>/dev/null || true)
-      info "nala-mcp ready"
+  if command -v fj &>/dev/null; then
+    local fj_authed=false
+    if fj whoami &>/dev/null 2>&1; then
+      fj_authed=true
+      info "fj CLI found and authenticated"
     else
-      info "nala-mcp already present: $nala_mcp_dir"
+      warn "fj CLI found but not authenticated"
     fi
 
-    local nala_entry="$nala_mcp_dir/dist/index.js"
-    [ ! -f "$nala_entry" ] && nala_entry="$nala_mcp_dir/src/index.js"
-
-    if [ -f "$nala_entry" ]; then
-      add_mcp_server "nala-mcp" "{
-        \"command\": \"node\",
-        \"args\": [\"$nala_entry\"],
+    local setup_fj
+    setup_fj=$(prompt_yn "Configure FluffyJaws MCP?" "y")
+    if [ "$setup_fj" = "y" ]; then
+      if [ "$fj_authed" = "false" ]; then
+        step "Running fj login (browser flow will open)..."
+        fj login
+      fi
+      add_mcp_server "fluffyjaws" "{
+        \"command\": \"fj\",
+        \"args\": [\"mcp\"],
         \"env\": {}
       }"
-      enable_mcp_in_settings "nala-mcp"
-      info "nala-mcp configured"
+      enable_mcp_in_settings "fluffyjaws"
+      info "FluffyJaws MCP configured"
       ((mcps_configured++))
-    else
-      warn "Could not find nala-mcp entry point"
     fi
+  else
+    warn "fj CLI not found — FluffyJaws is an Adobe internal tool"
+    note "  Install it from: go/fluffyjaws or ask a teammate for the installer"
+    note "  Once installed, run: fj login && fj mcp"
+    note "  Then re-run: ./install.sh --mcp-only"
   fi
 
   echo ""
