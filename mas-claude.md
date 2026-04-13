@@ -44,12 +44,3 @@
 - If planning, creating PRs, or reviewing code → read `.claude/rules/mental-models.md`
 - For full coding principles with examples → `.specify/memory/constitution.md`
 
-## graphify
-
-This project has a graphify knowledge graph at graphify-out/.
-
-### Context Navigation
-1. ALWAYS query the knowledge graph first — read graphify-out/GRAPH_REPORT.md for god nodes and community structure
-2. If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
-3. Only read raw files if the user explicitly says so
-4. After answering an architecture question that required reading raw files, save the answer using: `graphify save-result --question "Q" --answer "A" --type query --nodes NODE1 NODE2`

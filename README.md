@@ -14,7 +14,7 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 | Skills | 22 | `/start-ticket`, `/review-pr`, `/nala-writer`, `/nala-runner`, `/build-swc`, `/sync-with-main`, ... |
 | Commands | 13 | `/audit-changes`, `/mas-lint-fix`, `/mas-test`, `/tickets`, ... |
 | Agents | 16 | Specialized agents for fragment ops, NALA authoring, card development, ... |
-| Hooks | 13 scripts | ESLint + Prettier on save, session tracking, graphify freshness checks |
+| Hooks | 13 scripts | ESLint + Prettier on save, session tracking, compaction prep |
 | Plugins | Up to 10 | context7, superpowers, playwright, chrome-devtools, commit-commands, github, figma, challenge, ... |
 | MCP servers | Up to 4 | corp-jira, GitHub, MAS fragments, FluffyJaws |
 | Worktree manager | 1 script | Run multiple MAS branches simultaneously on different ports |

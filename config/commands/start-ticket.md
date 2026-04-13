@@ -47,20 +47,9 @@ Use the `ticket-context-gatherer` agent definition as guidance. Prompt the agent
 
 Once this agent returns, store the **ticket summary**, **description**, and **key terms** (component names, feature areas) for use in Phase 4.
 
-## Phase 3.5: Graph Context (quick — feeds Phase 4)
+## Phase 4: Codebase + FluffyJaws Research (parallel — uses Jira context)
 
-If `graphify-out/GRAPH_REPORT.md` exists, read it and extract:
-- Which **god nodes** (hub components) relate to the ticket's key terms
-- Which **communities** the ticket's work likely touches
-- Any **surprising connections** that cross the affected areas
-
-Store these as `GRAPH_CONTEXT` — a short list of community names, god nodes, and file paths the graph associates with the ticket's keywords. This will be passed to Agent A in Phase 4 so it starts from known architecture rather than blind grep.
-
-If `graphify-out/GRAPH_REPORT.md` does not exist, skip this phase.
-
-## Phase 4: Codebase + FluffyJaws Research (parallel — uses Jira context + graph context)
-
-Launch **2 agents in parallel** (both in a single message with multiple Agent tool calls). Pass the Jira summary, key terms from Phase 3, and graph context from Phase 3.5 to both agents.
+Launch **2 agents in parallel** (both in a single message with multiple Agent tool calls). Pass the Jira summary and key terms from Phase 3 to both agents.
 
 ### Agent A: Codebase Explorer (use subagent_type: Explore)
 
@@ -69,11 +58,8 @@ Prompt the agent with:
 >
 > Key terms from the ticket: [extract component names, feature areas, and technical keywords from the Jira description]
 >
-> **Graph context** (from graphify knowledge graph):
-> [paste GRAPH_CONTEXT from Phase 3.5 — god nodes, communities, and file paths related to this ticket]
->
-> Start from the graph context above — those are the architecturally relevant areas. Then search for:
-> - The specific files in the communities identified by the graph
+> Search for:
+> - Relevant files in `studio/src/`, `web-components/src/`
 > - Related test files in `nala/`, `web-components/test/`
 > - Configuration or model files that might be affected
 > - Similar past implementations or patterns
