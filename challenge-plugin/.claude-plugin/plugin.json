@@ -1,0 +1,8 @@
+{
+  "name": "challenge",
+  "description": "Expert-level PR challenge: spawns Architect, Adversary, Simplifier, and Reviewer (npeltier) agents to stress-test design decisions",
+  "version": "1.0.0",
+  "author": {
+    "name": "Axel Cureno"
+  }
+}

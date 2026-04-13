@@ -404,8 +404,10 @@ phase_plugins() {
     "playwright@claude-plugins-official:yes:Browser automation for testing"
     "chrome-devtools-mcp@claude-plugins-official:yes:Debug console errors and network requests"
     "commit-commands@claude-plugins-official:yes:Standardized commit and PR workflows"
+    "github@claude-plugins-official:yes:GitHub PR/issue skills and workflows"
     "figma@claude-plugins-official:no:Convert Figma designs to code (needs Figma access)"
     "claude-mem@thedotmack:no:Persistent cross-session memory (advanced)"
+    "explanatory-output-style@claude-plugins-official:no:Educational insights while coding (verbose)"
   )
 
   local selected
@@ -417,7 +419,7 @@ phase_plugins() {
   fi
 
   echo ""
-  step "Installing plugins..."
+  step "Installing marketplace plugins..."
   for plugin in $selected; do
     if claude plugins install "$plugin" 2>/dev/null; then
       info "Installed $plugin"
@@ -425,6 +427,25 @@ phase_plugins() {
       warn "Could not install $plugin (may already be installed or unavailable)"
     fi
   done
+
+  # ── challenge@local — bundled custom plugin ───────────────────────────────
+  echo ""
+  echo -e "  ${BOLD}Local Plugin: challenge${NC}"
+  note "  Spawns Architect, Adversary, Simplifier, and Reviewer agents"
+  note "  to stress-test design decisions before a PR."
+  echo ""
+  local install_challenge
+  install_challenge=$(prompt_yn "Install challenge plugin?" "y")
+  if [ "$install_challenge" = "y" ]; then
+    local challenge_dest="$HOME/.claude/plugins/challenge"
+    if [ -d "$challenge_dest" ]; then
+      info "challenge plugin already installed"
+    else
+      mkdir -p "$challenge_dest"
+      cp -r "$SCRIPT_DIR/challenge-plugin/." "$challenge_dest/"
+      info "challenge plugin installed"
+    fi
+  fi
 }
 
 # ─── Phase: MCP servers ───────────────────────────────────────────────────────
