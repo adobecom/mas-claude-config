@@ -126,4 +126,4 @@ After Wave 4:
 
 - `.claude/rules/coding.md` — DELETE > MODIFY > ADD priority
 - `mas-pr-creator` skill — PR template and creation
-- `mental-model:reviewer-npeltier:plan` — load reviewer constraints before planning
+- `mental-model:mas-architect:plan` — load reviewer constraints before planning

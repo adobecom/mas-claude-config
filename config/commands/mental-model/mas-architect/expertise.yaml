@@ -1,15 +1,20 @@
-# npeltier — Reviewer Mental Model
-# Tech lead / architect of mas/io — review patterns from 90+ PR reviews
+# MAS Architect — Reviewer Mental Model
+# Tech-lead / architect review patterns for the MAS codebase.
 #
-# USAGE: This file models npeltier's review behavior for pre-submission self-review
-# and expertise-informed PR planning. All claims backed by real PR citations.
-# Run /mental-model:reviewer-npeltier:self-improve to update from recent PR reviews.
+# USAGE: This file models the MAS architect review behavior for pre-submission
+# self-review and expertise-informed PR planning. All claims backed by real PR citations.
+# Run /mental-model:mas-architect:self-improve to update from recent PR reviews.
 #
-# Data source: adobecom/mas PRs #455-#732 (~6 months, 90+ reviews)
+# Data source: adobecom/mas PRs reviewed by reviewers listed under `architect_reviewers`.
+# Provenance lines below cite the specific historical reviewer who voiced each comment —
+# these are kept as evidence for the pattern, not as persona identity.
+
+# Reviewer logins whose PR review comments seed/refresh this model.
+# self-improve.md reads this list and queries the GitHub API for each login.
+architect_reviewers:
+  - npeltier
 
 overview:
-  name: "Nicolas Peltier"
-  github: "npeltier"
   role: "Tech lead / architect of mas/io (fragment delivery pipeline) and io/studio (translation/runtime actions)"
   core_review_philosophy: >
     Code must be minimal, correctly scoped, and reuse existing infrastructure.
@@ -27,7 +32,7 @@ ownership_map:
   primary_owner:
     io/www/src/fragment/:
       depth: "deep — reviews logic, naming, architecture, test coverage"
-      notes: "This is his domain. Expects all code here to follow his patterns."
+      notes: "Architect domain. Expects all code here to follow established patterns."
     io/studio/src/:
       depth: "deep — especially translation/, common.js, state management"
       notes: "Cares about centralizing state via state.js init/get pattern."
@@ -255,20 +260,20 @@ review_vocabulary:
     - phrase: "consider my comments as nitpicking"
       meaning: "Approved. Take-or-leave feedback."
     - phrase: "let's treat all my non addressed comments later"
-      meaning: "Approved to unblock, but he's tracking those items."
+      meaning: "Approved to unblock, but tracked items remain."
 
   neutral:
     - phrase: "i'm not sure why you are touching X"
       meaning: "Explain the connection or remove it. Could escalate."
       example_pr: 674
     - phrase: "can you explain what that is about?"
-      meaning: "Code is unclear. He read it multiple times."
+      meaning: "Code is unclear. Reviewer read it multiple times."
       example_pr: 727
     - phrase: "just ranting"
       meaning: "Acknowledging a known problem. Not blocking."
       example_pr: 598
     - phrase: "not agreed yet"
-      meaning: "Needs broader team discussion, not just his approval."
+      meaning: "Needs broader team discussion, not just this reviewer's approval."
       example_pr: 705
 
 # --- DOMAIN OPINIONS ---
@@ -311,21 +316,21 @@ domain_opinions:
     evidence: "Pattern from review-pr.md architectural correctness section"
 
   - topic: "io_folder_is_restricted"
-    stance: "Do not touch io/ unless strictly necessary. This is his domain and he expects changes here to have strong justification, a specific JIRA, and his explicit approval."
-    evidence: "Direct request from npeltier (2026-04-02). io/www and io/studio are his primary ownership areas."
+    stance: "Do not touch io/ unless strictly necessary. This is the architect's domain and changes here require strong justification, a specific JIRA, and explicit approval."
+    evidence: "Direct request from npeltier (2026-04-02). io/www and io/studio are the architect's primary ownership areas."
 
 # --- GOTCHAS ---
 
 gotchas:
-  - "Approvals with outstanding comments are NOT final — he tracks inline comments and expects follow-up PRs."
+  - "Approvals with outstanding comments are NOT final — inline comments are tracked and follow-up PRs are expected."
   - "Heart emoji is genuine sparse praise — used for reuse of existing utilities or clean deletions."
-  - "He reviews PR descriptions before code — missing context gets called out before he looks at the diff."
-  - "He may close PRs that overlap with his in-flight work — check with him if touching io/www transformers, settings, or locales."
+  - "PR descriptions are reviewed before code — missing context gets called out before the diff is read."
+  - "PRs may be closed if they overlap with in-flight work — check before touching io/www transformers, settings, or locales."
   - "'prefer small PR' is a standing requirement — enforced by blocking oversized PRs touching core modules."
-  - "Functional test vs visual test distinction — if your nala test asserts behavior of another module, he'll flag it."
-  - "Generated code gets extra scrutiny — if he suspects AI-generated code, he'll call it out."
-  - "He sometimes re-reviews after approval — don't assume initial approval is final."
+  - "Functional test vs visual test distinction — nala tests asserting behavior of another module get flagged."
+  - "Generated code gets extra scrutiny — suspected AI-generated code will be called out."
+  - "Re-review after approval can happen — initial approval is not always final."
   - "Fix dependabot properly — they only update package-lock.json, fix transitive dependency in package.json instead."
-  - "He uses screenshots in reviews — expects the same for visual changes."
-  - "'not agreed yet' means team discussion needed — don't try to convince him individually."
+  - "Screenshots in reviews — expected for visual changes."
+  - "'not agreed yet' means team discussion needed — don't try to convince the reviewer individually."
   - "Naming can be the sole blocker — PR #647 was blocked solely for 'sidenav' vs 'siDenav' casing."

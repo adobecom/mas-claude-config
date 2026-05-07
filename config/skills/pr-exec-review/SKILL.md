@@ -43,7 +43,7 @@ Produce a file-by-file critique:
 - Findings with `file:line` references
 - Severity tags: 🔴 critical / 🟡 suggestion / 🟢 nit
 - Check against `.claude/rules/coding.md` principles (DELETE > MODIFY > ADD, getter pattern, no inline styles, no `::part`)
-- Load npeltier reviewer values via `mental-model:reviewer-npeltier:question` if files touch `io/`, `studio/src/`, or `web-components/src/`
+- Load MAS architect reviewer values via `mental-model:mas-architect:question` if files touch `io/`, `studio/src/`, or `web-components/src/`
 - Be honest and specific — this is the "what I actually think" version
 
 Format:
@@ -156,5 +156,5 @@ The Obsidian MCP occasionally fails on first call. On error:
 ## Related
 
 - `review-pr` — deeper MAS-specific convention enforcement review
-- `mental-model:reviewer-npeltier:question` — reviewer values lookup
+- `mental-model:mas-architect:question` — reviewer values lookup
 - `.claude/rules/git-workflow.md` — PR conventions

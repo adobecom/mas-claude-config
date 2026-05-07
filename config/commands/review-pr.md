@@ -17,16 +17,16 @@ argument-hint: [PR number]
 Perform comprehensive, expert-level code review for MAS pull requests, enforcing all coding conventions, architecture patterns, and quality standards.
 
 ## Step 0: Load Reviewer Context (Automatic)
-Before reviewing, check if the changed files overlap with npeltier's ownership areas
+Before reviewing, check if the changed files overlap with the MAS architect's ownership areas
 (io/www/, io/studio/, studio/src/, web-components/src/).
 
 If ANY changed files are in those areas, spawn an Explore subagent:
-> Read `.claude/commands/mental-model/reviewer-npeltier/expertise.yaml`.
+> Read `.claude/commands/mental-model/mas-architect/expertise.yaml`.
 > For these changed files: [list from gh pr diff --name-only],
-> return npeltier's top 3 relevant red_flags, his ownership depth for these areas,
+> return the architect's top 3 relevant red_flags, ownership depth for these areas,
 > and any domain_opinions that apply. Keep under 10 lines.
 
-Use the returned context to prioritize review findings — issues that match npeltier's
+Use the returned context to prioritize review findings — issues that match the architect's
 red_flags should be flagged as higher severity. Cost: ~300 tokens.
 
 ## Usage

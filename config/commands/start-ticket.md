@@ -47,9 +47,20 @@ Use the `ticket-context-gatherer` agent definition as guidance. Prompt the agent
 
 Once this agent returns, store the **ticket summary**, **description**, and **key terms** (component names, feature areas) for use in Phase 4.
 
-## Phase 4: Codebase + FluffyJaws Research (parallel — uses Jira context)
+## Phase 3.5: Graph Context (quick — feeds Phase 4)
 
-Launch **2 agents in parallel** (both in a single message with multiple Agent tool calls). Pass the Jira summary and key terms from Phase 3 to both agents.
+If `graphify-out/GRAPH_REPORT.md` exists, read it and extract:
+- Which **god nodes** (hub components) relate to the ticket's key terms
+- Which **communities** the ticket's work likely touches
+- Any **surprising connections** that cross the affected areas
+
+Store these as `GRAPH_CONTEXT` — a short list of community names, god nodes, and file paths the graph associates with the ticket's keywords. This will be passed to Agent A in Phase 4 so it starts from known architecture rather than blind grep.
+
+If `graphify-out/GRAPH_REPORT.md` does not exist, skip this phase.
+
+## Phase 4: Codebase + FluffyJaws Research (parallel — uses Jira context + graph context)
+
+Launch **2 agents in parallel** (both in a single message with multiple Agent tool calls). Pass the Jira summary, key terms from Phase 3, and graph context from Phase 3.5 to both agents.
 
 ### Agent A: Codebase Explorer (use subagent_type: Explore)
 
@@ -58,8 +69,11 @@ Prompt the agent with:
 >
 > Key terms from the ticket: [extract component names, feature areas, and technical keywords from the Jira description]
 >
-> Search for:
-> - Relevant files in `studio/src/`, `web-components/src/`
+> **Graph context** (from graphify knowledge graph):
+> [paste GRAPH_CONTEXT from Phase 3.5 — god nodes, communities, and file paths related to this ticket]
+>
+> Start from the graph context above — those are the architecturally relevant areas. Then search for:
+> - The specific files in the communities identified by the graph
 > - Related test files in `nala/`, `web-components/test/`
 > - Configuration or model files that might be affected
 > - Similar past implementations or patterns
@@ -138,10 +152,10 @@ Wait for the user's choice, then:
 
 ### Option A: Spec-driven flow
 
-**Mental model pre-check (automatic):** Before brainstorming, check if any primary files from the Phase 5 briefing overlap with npeltier's ownership areas (`io/www/`, `io/studio/`, `studio/src/`, `web-components/src/`). If any do, spawn an Explore subagent:
+**Mental model pre-check (automatic):** Before brainstorming, check if any primary files from the Phase 5 briefing overlap with the MAS architect's ownership areas (`io/www/`, `io/studio/`, `studio/src/`, `web-components/src/`). If any do, spawn an Explore subagent:
 
-> Read `.claude/commands/mental-model/reviewer-npeltier/expertise.yaml`.
-> For planned changes to [files from briefing], return npeltier's top 3 relevant red_flags and any domain_opinions that apply. Keep under 10 lines.
+> Read `.claude/commands/mental-model/mas-architect/expertise.yaml`.
+> For planned changes to [files from briefing], return the architect's top 3 relevant red_flags and any domain_opinions that apply. Keep under 10 lines.
 
 Pass the returned constraints as additional context into brainstorming.
 
@@ -149,7 +163,7 @@ Pass the returned constraints as additional context into brainstorming.
 
 > Context already gathered:
 > [paste full briefing from Phase 5]
-> [paste npeltier constraints if applicable]
+> [paste architect constraints if applicable]
 >
 > Skip the research phase. Use this context to frame the problem, identify risks and open questions, then produce a spec.
 
@@ -193,7 +207,7 @@ If saving for later: remind the user to run `/resume TICKET` in any future sessi
 
 ### Option B: Plan only
 
-Invoke `superpowers:writing-plans` directly with the ticket briefing as context. Apply the same mental model pre-check if files touch npeltier's areas. Save plan to `.claude/plans/TICKET.md` and write state file with `"phase": "build"`.
+Invoke `superpowers:writing-plans` directly with the ticket briefing as context. Apply the same mental model pre-check if files touch the architect's areas. Save plan to `.claude/plans/TICKET.md` and write state file with `"phase": "build"`.
 
 ### Option C: Start coding
 

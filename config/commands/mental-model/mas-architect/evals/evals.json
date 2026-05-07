@@ -1,10 +1,10 @@
 {
-  "model": "reviewer-npeltier",
+  "model": "mas-architect",
   "command": "question",
   "evals": [
     {
       "id": 1,
-      "prompt": "I'm adding a localStorage fix to a skeleton shimmer PR. Would npeltier approve?",
+      "prompt": "I'm adding a localStorage fix to a skeleton shimmer PR. Would the MAS architect approve?",
       "expected_output": "Should identify scope_discipline violation, cite PR #642, recommend splitting into separate JIRA and PR.",
       "assertions": [
         { "text": "Does NOT create or modify any files" },
@@ -26,7 +26,7 @@
     },
     {
       "id": 3,
-      "prompt": "npeltier said 'i'm uncomfortable with that change' on my PR. How serious is this?",
+      "prompt": "The reviewer said 'i'm uncomfortable with that change' on my PR. How serious is this?",
       "expected_output": "Should decode using review_vocabulary blocking phrases, explain this is a hard block requiring rework.",
       "assertions": [
         { "text": "Does NOT create or modify any files" },

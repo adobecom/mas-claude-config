@@ -462,7 +462,7 @@ npm run dev:web-components
 - Testing Milo global navigation changes
 - Testing Milo header/footer changes
 - Testing other non-MAS Milo features
-- Testing code in `__ADOBE_DIR__/milo/libs/` (excluding mas)
+- Testing code in `/Users/axelcurenobasurto/Web/milo/libs/` (excluding mas)
 
 ### Use Both
 - When testing integration between MAS components and Milo features
@@ -533,7 +533,7 @@ https://www.adobe.com/creativecloud/plans.html
 ## Key Differences: Old vs New
 
 ### Before Migration (Old Pattern)
-- MAS source: `__ADOBE_DIR__/milo/libs/features/mas` (outdated)
+- MAS source: `/Users/axelcurenobasurto/Web/milo/libs/features/mas` (outdated)
 - Used: `?milolibs=...` for all component testing
 - Testing pattern: Same milolibs parameter for everything
 

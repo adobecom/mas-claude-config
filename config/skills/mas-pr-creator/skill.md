@@ -41,7 +41,7 @@ Automatically detect when user wants to create a pull request and guide them thr
 1. ✅ Detects PR creation intent
 2. ✅ Extracts JIRA ticket from branch name
 3. ✅ Runs pre-flight checks (git, linter)
-4. ✅ Runs reviewer pre-check via mental model (npeltier red_flags)
+4. ✅ Runs reviewer pre-check via mental model (MAS architect red_flags)
 5. ✅ Asks user for short description
 6. ✅ Generates proper PR title and body
 7. ✅ Invokes `/create-pr` command
@@ -155,14 +155,14 @@ Fix with:
 
 ### Step 4.5: Reviewer Pre-Check (via Mental Model)
 
-Before creating the PR, run an automated check against npeltier's review values.
+Before creating the PR, run an automated check against the MAS architect's review values.
 
 **Spawn an Explore subagent** with this prompt:
 
-> Read `.claude/commands/mental-model/reviewer-npeltier/expertise.yaml`.
+> Read `.claude/commands/mental-model/mas-architect/expertise.yaml`.
 > Read the git diff for this PR: `git diff main..HEAD`
 >
-> Check the diff against npeltier's red_flags and top 3 values:
+> Check the diff against the architect's red_flags and top 3 values:
 > 1. scope_discipline — Are all changes traceable to one ticket?
 > 2. factorization_and_reuse — Does any new code duplicate existing utilities?
 > 3. no_dead_or_throwaway_code — Is there unused code, console.logs, or one-off scripts?
@@ -172,22 +172,22 @@ Before creating the PR, run an automated check against npeltier's review values.
 > Return a structured report (under 15 lines):
 > - **Pass/Warn/Fail** for each checked value
 > - For any Warn/Fail: cite the specific file:line and the red_flag triggered
-> - Overall verdict: "Ready for npeltier" or "Fix before submitting"
+> - Overall verdict: "Ready for review" or "Fix before submitting"
 
 **If the check returns warnings or failures:**
 ```
-⚠️ Reviewer Pre-Check (npeltier mental model):
+⚠️ Reviewer Pre-Check (MAS architect mental model):
 
 - ❌ scope_discipline: studio/src/utils.js:45 — change unrelated to ticket scope
 - ⚠️ factorization_and_reuse: studio/src/locale-helper.js:12 — similar logic exists in paths.js
 
-Recommended: Fix these before creating PR, or npeltier will likely request changes.
+Recommended: Fix these before creating PR, or the reviewer will likely request changes.
 Continue anyway? (yes/fix first)
 ```
 
 **If the check passes:**
 ```
-✅ Reviewer Pre-Check: No red flags detected. Ready for npeltier's review.
+✅ Reviewer Pre-Check: No red flags detected. Ready for review.
 ```
 
 ### Step 5: Gather PR Information

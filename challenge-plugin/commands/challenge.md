@@ -63,7 +63,7 @@ Run `gh pr list --state open --json number,title,files --limit 10` to find other
 Spawn all four agents **in a single message** so they run in parallel. Each agent receives a context package tailored to its lens.
 
 For each agent, use the Agent tool with:
-- `subagent_type`: the agent name (`challenge:architect`, `challenge:adversary`, `challenge:simplifier`, `challenge:reviewer-npeltier`)
+- `subagent_type`: the agent name (`challenge:architect`, `challenge:adversary`, `challenge:simplifier`, `challenge:mas-architect`)
 
 **All agents receive (base context):**
 - The PR title, description, base branch, and URL
@@ -78,8 +78,8 @@ For each agent, use the Agent tool with:
 **Simplifier additionally receives:**
 - Project conventions from CLAUDE.md (if gathered)
 
-**Reviewer (npeltier) additionally receives:**
-- Instruction: "Read `.claude/commands/mental-model/reviewer-npeltier/expertise.yaml` first. Check the diff against npeltier's ranked values, red flags, and review vocabulary."
+**MAS architect additionally receives:**
+- Instruction: "Read `.claude/commands/mental-model/mas-architect/expertise.yaml` first. Check the diff against the architect's ranked values, red flags, and review vocabulary."
 
 ### 5. Present the Challenge Report
 
@@ -100,7 +100,7 @@ After all four agents return, compile the results into this format:
    "<one-line summary>"
    <numbered concerns with file references>
 
-  npeltier -- <verdict>
+  MAS Architect -- <verdict>
    "<one-line summary>"
    <numbered concerns with value rank and file references>
 

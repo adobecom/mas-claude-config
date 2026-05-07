@@ -27,12 +27,14 @@
 - Never use `::part` selectors — use CSS custom properties instead
 - Use `?maslibs=local` for MAS components, `?milolibs=local` for Milo features
 - No TypeScript. No inline styles. No inline comments unless asked.
-- Avoid changes to `io/` unless strictly necessary — this is npeltier's domain and changes require strong justification
+- Avoid changes to `io/www/` and `io/www/src/fragment/` unless strictly necessary — these are critical paths and changes require strong justification; the rest of `io/` is fair game
 - Use `fj chat "question"` for Adobe/AEM questions
 - Use context7 MCP for Spectrum/Lit docs before implementing
 - When adding new functions/constants intended to be tested, export them from the module *before* writing the test — skip this and the first test run will fail with a module resolution error (learned from DESTRUCTIVE_TOOLS incident)
 - For MWPW-* branch audits, follow the wave structure (Wave 0 sync → Wave 1 ship blockers → Wave 2 dead code → Wave 3 hardening → Wave 4 coverage) via the `audit-wave` skill; update the plan doc as each item lands
 - After any security fix (auth, URL validation, prompt injection, ReDoS), run the full relevant test suite and report the pass/fail delta vs baseline in your summary — never claim a security fix is done without that delta
+- Never commit `docs/superpowers/` — these are local AI planning artifacts and are already in `.gitignore`
+- Prefer concise text: PR descriptions, commit messages, Slack drafts, and summaries should be scannable. Cut preambles, redundant framing, and paragraph-length explanations of what a bullet already says. Each bullet carries one fact. If a section needs context, one sentence is usually enough.
 
 ## Conditional Context (Read BEFORE working in these areas)
 
@@ -44,3 +46,12 @@
 - If planning, creating PRs, or reviewing code → read `.claude/rules/mental-models.md`
 - For full coding principles with examples → `.specify/memory/constitution.md`
 
+## graphify (optional)
+
+If `graphify-out/` exists in the project root, this project has a graphify knowledge graph available.
+
+### Context Navigation
+1. If `graphify-out/GRAPH_REPORT.md` exists, query it first for god nodes and community structure before raw file reads.
+2. If `graphify-out/wiki/index.md` exists, navigate it instead of reading raw files.
+3. Only read raw files if the user explicitly says so.
+4. After answering an architecture question that required reading raw files, save the answer using: `graphify save-result --question "Q" --answer "A" --type query --nodes NODE1 NODE2`.

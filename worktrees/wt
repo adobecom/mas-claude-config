@@ -353,6 +353,10 @@ cmd_start() {
         git_fix "$branch"
     fi
 
+    # Re-apply studio.html patch (gets reverted by git pull/checkout — must stay local)
+    patch_studio_html "$dest/studio.html"
+    patch_studio_html "$MAS_DIR/studio.html"
+
     local log="$dest/.wt.log"
     : > "$log"
 
@@ -381,6 +385,33 @@ cmd_start() {
         fi
         echo "$aem_pid" > "$(pids_file "$branch")"
         echo "→ pid: $aem_pid (aem)"
+
+        # Ensure shared proxy on :8080 is up (needed for AEM cloud requests)
+        if ! lsof -ti:"$PROXY_BASE" &>/dev/null; then
+            echo "→ starting shared proxy on :$PROXY_BASE (from $MAS_DIR/studio)"
+            (cd "$MAS_DIR/studio" && npm run proxy >> "$MAS_DIR/.wt-proxy.log" 2>&1) &
+            local proxy_pid=$!
+            sleep 1.5
+            if kill -0 "$proxy_pid" 2>/dev/null; then
+                echo "→ pid: $proxy_pid (proxy)"
+            else
+                echo "✗ proxy died immediately — check $MAS_DIR/.wt-proxy.log" >&2
+            fi
+        fi
+
+        # Ensure main AEM on :3000 is up (needed for IMS OAuth relay)
+        if ! lsof -ti:3000 &>/dev/null; then
+            echo "→ starting main AEM on :3000 for IMS relay (from $MAS_DIR)"
+            (cd "$MAS_DIR" && aem up --port 3000 --no-open >> "$MAS_DIR/.wt-main-aem.log" 2>&1) &
+            local main_pid=$!
+            sleep 1.5
+            if kill -0 "$main_pid" 2>/dev/null; then
+                echo "→ pid: $main_pid (main aem)"
+            else
+                echo "✗ main aem died immediately — check $MAS_DIR/.wt-main-aem.log" >&2
+            fi
+        fi
+
         echo "  Open:  http://localhost:$aem_port/studio.html?proxy.port=$PROXY_BASE"
     fi
 
