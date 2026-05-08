@@ -10,11 +10,12 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 
 | Component | Count | What it does |
 |-----------|-------|--------------|
-| Coding rules | 16 files | Conventions for Lit, Spectrum, fragments, testing, git workflow |
-| Skills | 22 | `/start-ticket`, `/review-pr`, `/nala-writer`, `/nala-runner`, `/build-swc`, `/sync-with-main`, ... |
-| Commands | 13 | `/audit-changes`, `/mas-lint-fix`, `/mas-test`, `/tickets`, ... |
-| Agents | 16 | Specialized agents for fragment ops, NALA authoring, card development, ... |
+| Coding rules | 15 files | Conventions for Lit, Spectrum, fragments, testing, git workflow |
+| Skills | 24 | `/start-ticket`, `/review-pr`, `/nala-writer`, `/nala-runner`, `/sync-with-main`, ... |
+| Commands | 13 | `/audit-changes`, `/build-swc`, `/mas-lint-fix`, `/mas-test`, `/tickets`, ... |
+| Agents | 15 | Specialized agents for fragment ops, NALA authoring, card development, ... |
 | Hooks | 13 scripts | ESLint + Prettier on save, session tracking, compaction prep |
+| Mental models | 1 | `mas-architect` — reviewer-style mental model for pre-submission self-review (`/mental-model:mas-architect:plan`, `:question`, `:self-improve`) |
 | Plugins | Up to 10 | context7, superpowers, playwright, chrome-devtools, commit-commands, github, figma, challenge, ... |
 | MCP servers | Up to 4 | corp-jira, GitHub, MAS fragments, FluffyJaws |
 | Worktree manager | 1 script | Run multiple MAS branches simultaneously on different ports |
@@ -83,6 +84,33 @@ The wizard sets up the following MCP servers:
 
 > **NALA:** The nala skills (`/nala-writer`, `/nala-runner`, `/nala`) are included in the config bundle and work without any MCP server.
 
+## Mental Models
+
+The bundle ships a `mas-architect` mental model — a YAML knowledge base capturing review patterns from MAS architectural reviewers (npeltier, yesil, honstar, afmicka). It's an **on-demand tool**, not an ambient rule. Reach for it when you want a concrete check; don't wait for it to fire automatically.
+
+### When to use
+
+- **Before submitting a PR**: `/mental-model:mas-architect:plan "<what you're about to implement>"` — surfaces red-flags the model knows reviewers will catch (scope creep, duplicated utilities, dead code, naming concerns)
+- **When checking a specific concern**: `/mental-model:mas-architect:question "Would the architect flag a method named renderSearchControls()?"`
+- **Through the challenge plugin**: `/challenge <PR_URL>` spawns a `mas-architect` agent alongside Architect/Adversary/Simplifier for a multi-lens stress test
+
+### How it stays accurate
+
+The model is grounded in real PR review data — every red_flag, value, and vocabulary entry cites the PR and quote it came from. To keep it current:
+
+```bash
+# Refresh patterns from the configured architect_reviewers list
+/mental-model:mas-architect:self-improve
+```
+
+Self-improve queries the GitHub API for each reviewer in `expertise.yaml`'s `architect_reviewers` field, harvests new patterns from their recent comments, and appends evidence with per-quote provenance. **Recommended cadence: monthly.** Quarterly, also review the `architect_reviewers` list against who's actually reviewing PRs — when reviewers rotate, the list should rotate with them.
+
+### When NOT to use
+
+- Pure CSS or test-only changes (low architectural-feedback density)
+- Changes that don't touch `io/`, `studio/src/`, or `web-components/src/`
+- Quick hotfixes where consultation cost > benefit
+
 ## Updating
 
 When the config evolves, pull the latest and re-run:
@@ -100,6 +128,8 @@ Your existing `.env`, `settings.local.json`, and MCP tokens are never overwritte
 **Personal coding preferences:** Add them to `~/.claude/CLAUDE.md` (global, not in the repo).
 
 **Local permission overrides:** Use `mas/.claude/settings.local.json` — this file is gitignored and never overwritten by the installer.
+
+**CLAUDE.md guidance:** Keep CLAUDE.md files small and only where they document non-obvious context. The repo's root + `io/` + `studio/` + a few `studio/src/<area>/` files are intentionally the only ones — see `config/rules/claude-md-hygiene.md` for the full pattern. Don't add one per folder; use `.claude/rules/<topic>.md` for path-scoped guidance instead.
 
 **Worktree workflow:** After installing, see `adobe/CLAUDE.md` for the full worktree documentation.
 

@@ -366,6 +366,12 @@ phase_config() {
     info "Installed MAS CLAUDE.md"
   fi
 
+  # Copy .graphifyignore (only if user hasn't customized one)
+  if [ -f "$SCRIPT_DIR/.graphifyignore" ] && [ ! -f "$MAS_DIR/.graphifyignore" ]; then
+    cp "$SCRIPT_DIR/.graphifyignore" "$MAS_DIR/.graphifyignore"
+    info "Installed .graphifyignore"
+  fi
+
   # Replace path placeholders
   step "Configuring paths..."
   find "$claude_dest" "$MAS_DIR/CLAUDE.md" \
