@@ -93,6 +93,26 @@ done
 
 cp "$MAS_DIR/CLAUDE.md" "$BUNDLE_DIR/mas-claude.md" 2>/dev/null && info "Copied mas/CLAUDE.md → mas-claude.md" || warn "mas/CLAUDE.md not found"
 
+# Mirror subdirectory CLAUDE.md files (studio/, io/, studio/src/aem/, etc.) back
+# into the bundle so the team gets the latest authored versions. Only mirrors
+# files that already exist in the bundle — we don't auto-discover new ones to
+# avoid sweeping in personal/experimental CLAUDE.md files.
+SUBDIR_CLAUDE_DEST="$BUNDLE_DIR/subdir-claude-md"
+if [ -d "$SUBDIR_CLAUDE_DEST" ]; then
+  subdir_copied=0
+  while IFS= read -r tracked; do
+    rel="${tracked#$SUBDIR_CLAUDE_DEST/}"
+    src="$MAS_DIR/$rel"
+    if [ -f "$src" ]; then
+      cp "$src" "$tracked"
+      subdir_copied=$((subdir_copied + 1))
+    else
+      warn "subdir CLAUDE.md missing in mas/, kept stale copy: $rel"
+    fi
+  done < <(find "$SUBDIR_CLAUDE_DEST" -name "CLAUDE.md" -type f 2>/dev/null)
+  info "Mirrored $subdir_copied subdir CLAUDE.md file(s)"
+fi
+
 # Copy adobe/CLAUDE.md but strip the <claude-mem-context> block
 if [ -f "$ADOBE_DIR/CLAUDE.md" ]; then
   python3 - "$ADOBE_DIR/CLAUDE.md" "$BUNDLE_DIR/adobe-claude.md" <<'PYEOF'
@@ -123,7 +143,10 @@ echo ""
 echo "Sanitizing paths..."
 
 # Collect all text files in the bundle (exclude binary/git)
-find "$CONFIG_DEST" "$BUNDLE_DIR/mas-claude.md" "$BUNDLE_DIR/adobe-claude.md" \
+SANITIZE_TARGETS=("$CONFIG_DEST" "$BUNDLE_DIR/mas-claude.md" "$BUNDLE_DIR/adobe-claude.md")
+[ -d "$SUBDIR_CLAUDE_DEST" ] && SANITIZE_TARGETS+=("$SUBDIR_CLAUDE_DEST")
+
+find "${SANITIZE_TARGETS[@]}" \
   -type f \( -name "*.md" -o -name "*.json" -o -name "*.py" -o -name "*.yaml" -o -name "*.sh" \) \
   2>/dev/null | while read -r file; do
     # Replace in order: longest path first
@@ -162,8 +185,10 @@ if [ -f "$BUNDLE_DIR/worktrees/wt" ]; then
   fi
 fi
 
-# Strip claude-mem-context blocks from any .md files in config/
-find "$CONFIG_DEST" -name "*.md" -type f | while read -r file; do
+# Strip claude-mem-context blocks from any .md files in config/ and the subdir bundle
+STRIP_TARGETS=("$CONFIG_DEST")
+[ -d "$SUBDIR_CLAUDE_DEST" ] && STRIP_TARGETS+=("$SUBDIR_CLAUDE_DEST")
+find "${STRIP_TARGETS[@]}" -name "*.md" -type f | while read -r file; do
   python3 - "$file" <<'PYEOF'
 import sys, re
 content = open(sys.argv[1]).read()
@@ -190,12 +215,15 @@ SECRET_PATTERNS=(
   "access_token.*=.*['\"][^'\"]+['\"]"  # access_token assignments
 )
 
+SCAN_TARGETS=("$CONFIG_DEST" "$BUNDLE_DIR/mas-claude.md" "$BUNDLE_DIR/adobe-claude.md")
+[ -d "$SUBDIR_CLAUDE_DEST" ] && SCAN_TARGETS+=("$SUBDIR_CLAUDE_DEST")
+
 for pattern in "${SECRET_PATTERNS[@]}"; do
-  if grep -r "$pattern" "$CONFIG_DEST" "$BUNDLE_DIR/mas-claude.md" "$BUNDLE_DIR/adobe-claude.md" \
+  if grep -r "$pattern" "${SCAN_TARGETS[@]}" \
      --include="*.md" --include="*.json" --include="*.py" --include="*.yaml" \
      --include="*.sh" -l 2>/dev/null | grep -q .; then
     error "Potential secret found matching pattern: $pattern"
-    grep -r "$pattern" "$CONFIG_DEST" \
+    grep -r "$pattern" "${SCAN_TARGETS[@]}" \
       --include="*.md" --include="*.json" --include="*.py" --include="*.yaml" \
       -l 2>/dev/null
     SECRETS_FOUND=1
@@ -203,11 +231,11 @@ for pattern in "${SECRET_PATTERNS[@]}"; do
 done
 
 # Check for remaining absolute paths
-if grep -r "/Users/" "$CONFIG_DEST" "$BUNDLE_DIR/mas-claude.md" "$BUNDLE_DIR/adobe-claude.md" \
+if grep -r "/Users/" "${SCAN_TARGETS[@]}" \
    --include="*.md" --include="*.json" --include="*.py" \
    -l 2>/dev/null | grep -q .; then
   warn "Remaining absolute paths found (may be OK if they're in examples or comments):"
-  grep -r "/Users/" "$CONFIG_DEST" --include="*.md" --include="*.json" --include="*.py" \
+  grep -r "/Users/" "${SCAN_TARGETS[@]}" --include="*.md" --include="*.json" --include="*.py" \
     2>/dev/null | head -5
 fi
 
