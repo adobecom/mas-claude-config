@@ -367,6 +367,24 @@ phase_config() {
     info "Installed MAS CLAUDE.md"
   fi
 
+  # Copy subdirectory CLAUDE.md files (studio/, io/, studio/src/aem/, etc.).
+  # The mas repo gitignores **/CLAUDE.md, so these are per-machine files —
+  # but the team still wants them shared. Install.sh copies them in from
+  # mas-claude-config/subdir-claude-md/, mirroring the path structure.
+  # Overwrites local edits (same contract as the root CLAUDE.md install above).
+  local subdir_claude_src="$SCRIPT_DIR/subdir-claude-md"
+  if [ -d "$subdir_claude_src" ]; then
+    local subdir_count=0
+    while IFS= read -r src; do
+      local rel="${src#$subdir_claude_src/}"
+      local dest="$MAS_DIR/$rel"
+      mkdir -p "$(dirname "$dest")"
+      cp "$src" "$dest"
+      subdir_count=$((subdir_count + 1))
+    done < <(find "$subdir_claude_src" -name "CLAUDE.md" -type f 2>/dev/null)
+    info "Installed $subdir_count subdir CLAUDE.md file(s)"
+  fi
+
   # Copy .graphifyignore (only if user hasn't customized one)
   if [ -f "$SCRIPT_DIR/.graphifyignore" ] && [ ! -f "$MAS_DIR/.graphifyignore" ]; then
     cp "$SCRIPT_DIR/.graphifyignore" "$MAS_DIR/.graphifyignore"

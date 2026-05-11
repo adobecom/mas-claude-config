@@ -18,6 +18,10 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 | Mental models | 1 | `mas-architect` — reviewer-style mental model for pre-submission self-review (`/mental-model:mas-architect:plan`, `:question`, `:self-improve`) |
 | Plugins | Up to 10 | context7, superpowers, playwright, chrome-devtools, commit-commands, figma, challenge, ... |
 
+**Also installed at the repo root + subdirs (`mas/CLAUDE.md`, `mas/studio/CLAUDE.md`, `mas/io/CLAUDE.md`, `mas/studio/src/{aem,fields,placeholders,reactivity,rte}/CLAUDE.md`):**
+
+`mas/.gitignore` ignores `**/CLAUDE.md` (they're per-machine artifacts in the upstream repo), so we ship them via this bundle instead. `install.sh` mirrors `subdir-claude-md/` into the right paths inside `mas/`. `export.sh` reads them back from `mas/` when the canonical author re-runs export — it won't auto-discover new ones, so to add a new tracked file, create it in `subdir-claude-md/` first.
+
 **What gets installed in `~/.claude/` (user-level, all projects):**
 
 | Component | What it does |
