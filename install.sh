@@ -42,8 +42,8 @@ print_banner() {
   echo -e "${BOLD}║${NC}  • Auto-linting hooks (ESLint + Prettier on save)            ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Secret-leak prevention hooks (blocks credentials)         ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Claude Code plugins                                       ${BOLD}║${NC}"
-  echo -e "${BOLD}║${NC}  • MCP servers (Jira, GitHub, MAS fragments)                 ${BOLD}║${NC}"
-  echo -e "${BOLD}║${NC}  • Worktree manager for parallel branch testing              ${BOLD}║${NC}"
+  echo -e "${BOLD}║${NC}  • MCP servers (Jira, Wiki, FluffyJaws)                      ${BOLD}║${NC}"
+  echo -e "${BOLD}║${NC}  • Worktree manager + claude-mas shell helper                ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}                                                              ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  ${DIM}Takes about 3–5 minutes. Safe to re-run anytime.${NC}           ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}                                                              ${BOLD}║${NC}"
@@ -545,6 +545,28 @@ phase_mcp() {
 
   local mcps_configured=0
 
+  # ── Shared: Adobe-AIFoundations/adobe-mcp-servers monorepo ──────────────────
+  # Both corp-jira and adobe-wiki ship from this monorepo. Clone once.
+  local adobe_mcps_dir="$ADOBE_DIR/adobe-mcp-servers"
+  ensure_adobe_mcps_monorepo() {
+    local subdir="$1"  # e.g. "src/corp-jira"
+    if [ ! -d "$adobe_mcps_dir" ]; then
+      step "Cloning Adobe-AIFoundations/adobe-mcp-servers..."
+      if ! git clone --quiet git@github.com:Adobe-AIFoundations/adobe-mcp-servers.git "$adobe_mcps_dir" 2>/dev/null; then
+        warn "git clone failed — make sure you have access to Adobe-AIFoundations/adobe-mcp-servers"
+        note "Visit https://github.com/Adobe-AIFoundations/adobe-mcp-servers to request access."
+        return 1
+      fi
+    fi
+    # Build the requested subdir if dist/ is missing.
+    local sub="$adobe_mcps_dir/$subdir"
+    if [ ! -f "$sub/dist/index.js" ] && [ -d "$sub" ]; then
+      step "Building $subdir..."
+      (cd "$sub" && npm install --silent && npm run build --silent 2>/dev/null || true)
+    fi
+    return 0
+  }
+
   # ── 1. corp-jira ────────────────────────────────────────────────────────────
   echo -e "  ${BOLD}1/4  Corp Jira${NC}"
   note "  Lets Claude read, create, and update Jira tickets."
@@ -554,134 +576,95 @@ phase_mcp() {
   local setup_jira
   setup_jira=$(prompt_yn "Configure corp-jira?" "y")
   if [ "$setup_jira" = "y" ]; then
-    # Clone the MCP server if not already present
-    local jira_mcp_dir="$ADOBE_DIR/remote-corp-jira-mcp"
-    if [ ! -d "$jira_mcp_dir" ]; then
-      step "Cloning adobecom/remote-corp-jira-mcp..."
-      git clone --quiet https://github.com/adobecom/remote-corp-jira-mcp.git "$jira_mcp_dir"
-      step "Building..."
-      (cd "$jira_mcp_dir" && npm install --silent && npm run build --silent 2>/dev/null || true)
-      info "Corp Jira MCP server ready"
-    else
-      info "Corp Jira MCP server already present: $jira_mcp_dir"
-    fi
+    if ensure_adobe_mcps_monorepo "src/corp-jira"; then
+      local jira_entry_point="$adobe_mcps_dir/src/corp-jira/dist/index.js"
+      if [ ! -f "$jira_entry_point" ]; then
+        warn "Build artifact not found at $jira_entry_point"
+        warn "Run manually: cd $adobe_mcps_dir/src/corp-jira && npm install && npm run build"
+      else
+        echo ""
+        note "  Get your Jira PAT: https://jira.corp.adobe.com → Profile → Personal Access Tokens"
+        local jira_pat
+        jira_pat=$(prompt_input "Jira Personal Access Token (hidden)" "" "true")
 
-    local jira_entry_point="$jira_mcp_dir/dist/index.js"
-    [ ! -f "$jira_entry_point" ] && jira_entry_point="$jira_mcp_dir/src/index.js"
-
-    echo ""
-    note "  Get your Jira PAT: https://jira.corp.adobe.com → Profile → Personal Access Tokens"
-    local jira_pat
-    jira_pat=$(prompt_input "Jira Personal Access Token (hidden)" "" "true")
-
-    if [ -n "$jira_pat" ]; then
-      local jira_email="${USER}@adobe.com"
-      add_mcp_server "corp-jira" "{
-        \"command\": \"node\",
-        \"args\": [\"$jira_entry_point\"],
-        \"env\": {
-          \"JIRA_PERSONAL_ACCESS_TOKEN\": \"$jira_pat\",
-          \"JIRA_EMAIL\": \"$jira_email\"
-        }
-      }"
-      enable_mcp_in_settings "corp-jira"
-      info "corp-jira configured"
-      ((mcps_configured++))
-    else
-      warn "Skipped (no PAT entered)"
+        if [ -n "$jira_pat" ]; then
+          local jira_email="${USER}@adobe.com"
+          add_mcp_server "corp-jira" "{
+            \"command\": \"node\",
+            \"args\": [\"$jira_entry_point\"],
+            \"env\": {
+              \"JIRA_PERSONAL_ACCESS_TOKEN\": \"$jira_pat\",
+              \"JIRA_EMAIL\": \"$jira_email\",
+              \"JIRA_API_BASE_URL\": \"https://jira.corp.adobe.com/rest/api/2\"
+            }
+          }"
+          enable_mcp_in_settings "corp-jira"
+          info "corp-jira configured"
+          ((mcps_configured++))
+        else
+          warn "Skipped (no PAT entered)"
+        fi
+      fi
     fi
   fi
 
   echo ""
 
-  # ── 2. GitHub ────────────────────────────────────────────────────────────────
+  # ── 2. GitHub (gh CLI, no MCP) ───────────────────────────────────────────────
   echo -e "  ${BOLD}2/4  GitHub${NC}"
-  note "  Lets Claude interact with GitHub PRs, issues, and repos."
-  note "  Used by: /review-pr, /mas-pr-creator"
+  note "  We use the 'gh' CLI for GitHub interactions (PRs, issues, comments)."
+  note "  Used by: /review-pr, /mas-pr-creator, gh pr create/edit/comment"
   echo ""
 
-  if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
-    note "  You have 'gh' authenticated. You can use that (no extra config needed)"
-    note "  or set up the GitHub MCP server for richer integration."
-    local setup_gh
-    setup_gh=$(prompt_yn "Also set up GitHub MCP server?" "n")
-    if [ "$setup_gh" = "y" ]; then
-      local gh_pat
-      gh_pat=$(prompt_input "GitHub Personal Access Token (hidden)" "" "true")
-      if [ -n "$gh_pat" ]; then
-        add_mcp_server "github" "{
-          \"command\": \"npx\",
-          \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"],
-          \"env\": {
-            \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$gh_pat\"
-          }
-        }"
-        info "GitHub MCP configured"
-        ((mcps_configured++))
-      fi
+  if command -v gh >/dev/null 2>&1; then
+    if gh auth status >/dev/null 2>&1; then
+      info "gh CLI installed and authenticated"
     else
-      info "Using gh CLI (no MCP server needed)"
+      warn "gh CLI installed but not authenticated"
+      note "Run: gh auth login"
     fi
   else
-    local setup_gh
-    setup_gh=$(prompt_yn "Configure GitHub MCP server?" "y")
-    if [ "$setup_gh" = "y" ]; then
-      note "  Create a PAT at: https://github.com/settings/tokens"
-      note "  Required scopes: repo, read:org"
-      local gh_pat
-      gh_pat=$(prompt_input "GitHub Personal Access Token (hidden)" "" "true")
-      if [ -n "$gh_pat" ]; then
-        add_mcp_server "github" "{
-          \"command\": \"npx\",
-          \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"],
-          \"env\": {
-            \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$gh_pat\"
-          }
-        }"
-        info "GitHub MCP configured"
-        ((mcps_configured++))
-      fi
-    fi
+    warn "gh CLI not found"
+    note "Install: brew install gh    (then run: gh auth login)"
   fi
 
   echo ""
 
-  # ── 3. MAS Content Fragments ─────────────────────────────────────────────────
-  echo -e "  ${BOLD}3/4  MAS Content Fragments${NC}"
-  note "  Lets Claude search, create, and publish AEM content fragments."
-  note "  Used by: /test-mcp, fragment operations, bulk publish"
+  # ── 3. Adobe Wiki ────────────────────────────────────────────────────────────
+  echo -e "  ${BOLD}3/4  Adobe Wiki${NC}"
+  note "  Lets Claude read, search, update, and comment on Adobe Wiki (wiki.corp.adobe.com)."
+  note "  Useful for: runbooks, internal docs, PR-context lookup."
   echo ""
 
-  local setup_mas
-  setup_mas=$(prompt_yn "Configure MAS MCP server?" "y")
-  if [ "$setup_mas" = "y" ]; then
-    local mas_mcp_dir="$MAS_DIR/mas-mcp-server"
-    local mas_entry="$mas_mcp_dir/dist/index.js"
-
-    if [ ! -d "$mas_mcp_dir" ]; then
-      warn "MAS MCP server not found at $mas_mcp_dir"
-      warn "Make sure you have the full MAS repo and run 'npm install'"
-    else
-      # Build if dist/ is missing or stale
-      if [ ! -f "$mas_entry" ]; then
-        step "Building MAS MCP server..."
-        (cd "$mas_mcp_dir" && npm install --silent && npm run build --silent 2>/dev/null || true)
-      fi
-
-      if [ -f "$mas_entry" ]; then
-        add_mcp_server "mas" "{
-          \"command\": \"node\",
-          \"args\": [\"$mas_entry\"],
-          \"env\": {}
-        }"
-        enable_mcp_in_settings "mas"
-        info "MAS MCP configured → $mas_entry"
-        ((mcps_configured++))
-        echo ""
-        warn "IMS authentication required separately:"
-        note "  cd $mas_mcp_dir && npm run auth"
+  local setup_wiki
+  setup_wiki=$(prompt_yn "Configure adobe-wiki MCP?" "y")
+  if [ "$setup_wiki" = "y" ]; then
+    if ensure_adobe_mcps_monorepo "src/adobe-wiki"; then
+      local wiki_entry_point="$adobe_mcps_dir/src/adobe-wiki/dist/index.js"
+      if [ ! -f "$wiki_entry_point" ]; then
+        warn "Build artifact not found at $wiki_entry_point"
+        warn "Run manually: cd $adobe_mcps_dir/src/adobe-wiki && npm install && npm run build"
       else
-        warn "Build failed — check $mas_mcp_dir for errors"
+        echo ""
+        note "  Get your Wiki PAT: https://wiki.corp.adobe.com → Profile → Personal Access Tokens"
+        local wiki_pat
+        wiki_pat=$(prompt_input "Wiki Personal Access Token (hidden)" "" "true")
+
+        if [ -n "$wiki_pat" ]; then
+          add_mcp_server "adobe-wiki" "{
+            \"command\": \"node\",
+            \"args\": [\"$wiki_entry_point\"],
+            \"env\": {
+              \"WIKI_MCP_TOKEN\": \"$wiki_pat\",
+              \"WIKI_MCP_HOST\": \"wiki.corp.adobe.com\"
+            }
+          }"
+          enable_mcp_in_settings "adobe-wiki"
+          info "adobe-wiki configured"
+          ((mcps_configured++))
+        else
+          warn "Skipped (no PAT entered)"
+        fi
       fi
     fi
   fi
@@ -728,6 +711,49 @@ phase_mcp() {
 
   echo ""
   info "$mcps_configured MCP server(s) configured"
+
+  # ── Migration notes for upgraders ──────────────────────────────────────────
+  # Surface drift between the old wizard layout and the new one. Read-only —
+  # we never delete anything for the user, just flag what's stale.
+
+  local old_jira_clone="$ADOBE_DIR/remote-corp-jira-mcp"
+  if [ -d "$old_jira_clone" ]; then
+    echo ""
+    warn "Old Jira MCP clone detected at: $old_jira_clone"
+    note "The Jira MCP source moved to Adobe-AIFoundations/adobe-mcp-servers."
+    note "Safe to delete the old clone:"
+    note "  rm -rf $old_jira_clone"
+  fi
+
+  # MAS MCP entry left over from the old wizard: it pointed at a path that may
+  # no longer exist (mas-mcp-server source isn't on origin/main).
+  if [ -f "$MCP_JSON_PATH" ]; then
+    local stale_mas_entry
+    stale_mas_entry=$(python3 - <<'PYEOF'
+import json, os, sys
+mcp_path = os.path.expanduser("~/.claude/mcp.json")
+try:
+    cfg = json.loads(open(mcp_path).read())
+except Exception:
+    sys.exit(0)
+mas = cfg.get("servers", {}).get("mas")
+if not mas:
+    sys.exit(0)
+args = mas.get("args") or []
+entry = args[0] if args else None
+if entry and not os.path.exists(entry):
+    print(entry)
+PYEOF
+    )
+    if [ -n "$stale_mas_entry" ]; then
+      echo ""
+      warn "MAS MCP entry in ~/.claude/mcp.json points to a missing path:"
+      note "  $stale_mas_entry"
+      note "The 'mas' MCP was removed from this wizard (source isn't on origin/main yet)."
+      note "Clean up the orphan entry with:"
+      note "  claude mcp remove mas"
+    fi
+  fi
 }
 
 # ─── Phase: User-level skills & statusline ───────────────────────────────────
@@ -1001,6 +1027,91 @@ phase_worktrees() {
   fi
 }
 
+# ─── Phase: Shell helpers (claude-mas, mas) ───────────────────────────────────
+
+phase_shell_helpers() {
+  detect_paths
+
+  section "Shell Helpers"
+
+  echo "  Installs two shell functions you can use from any terminal:"
+  echo ""
+  echo -e "    ${DIM}claude-mas MWPW-123456   # open Claude Code in that worktree (creates if missing)${NC}"
+  echo -e "    ${DIM}claude-mas main          # open Claude Code in main mas repo${NC}"
+  echo -e "    ${DIM}claude-mas               # same as 'claude-mas main'${NC}"
+  echo -e "    ${DIM}mas                      # cd into main mas repo${NC}"
+  echo ""
+
+  local install_helpers
+  install_helpers=$(prompt_yn "Install shell helpers (claude-mas, mas)?" "y")
+  if [ "$install_helpers" != "y" ]; then
+    return
+  fi
+
+  local helper_src="$SCRIPT_DIR/scripts/claude-mas.sh"
+  if [ ! -f "$helper_src" ]; then
+    warn "scripts/claude-mas.sh not found in bundle"
+    return
+  fi
+
+  local marker_begin="# >>> mas-claude-config: claude-mas (managed) >>>"
+  local marker_end="# <<< mas-claude-config: claude-mas (managed) <<<"
+
+  local block_file
+  block_file=$(mktemp)
+  cat > "$block_file" <<EOF
+$marker_begin
+export ADOBE_DIR="$ADOBE_DIR"
+export MAS_DIR="$MAS_DIR"
+[ -f "$helper_src" ] && . "$helper_src"
+$marker_end
+EOF
+
+  local installed_any=0
+  for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+    # Skip non-existent rc files that aren't the default for this shell.
+    if [ ! -f "$rc" ]; then
+      case "$rc" in
+        *zshrc) [ -n "${ZSH_VERSION:-}" ] || [ "${SHELL##*/}" = "zsh" ] || continue ;;
+        *bashrc) [ -n "${BASH_VERSION:-}" ] || [ "${SHELL##*/}" = "bash" ] || continue ;;
+      esac
+    fi
+
+    if [ -f "$rc" ] && grep -q "mas-claude-config: claude-mas (managed)" "$rc"; then
+      # Update the existing block in-place via awk.
+      local tmp
+      tmp=$(mktemp)
+      awk -v b="$marker_begin" -v e="$marker_end" -v bf="$block_file" '
+        $0 == b {
+          while ((getline line < bf) > 0) print line
+          close(bf)
+          skip = 1
+          next
+        }
+        skip && $0 == e { skip = 0; next }
+        !skip { print }
+      ' "$rc" > "$tmp" && mv "$tmp" "$rc"
+      info "Updated managed block in $rc"
+    else
+      printf '\n' >> "$rc"
+      cat "$block_file" >> "$rc"
+      info "Appended managed block to $rc"
+    fi
+    installed_any=1
+  done
+
+  rm -f "$block_file"
+
+  if [ "$installed_any" -eq 1 ]; then
+    note "Run 'source ~/.zshrc' (or restart your shell) to start using:"
+    note "  claude-mas <branch>"
+    note "  mas"
+  else
+    warn "No shell rc files found — add this line manually to your shell rc:"
+    note "  . \"$helper_src\""
+  fi
+}
+
 # ─── Phase: Summary ───────────────────────────────────────────────────────────
 
 INSTALLED_CONFIG=false
@@ -1016,9 +1127,6 @@ phase_summary() {
   lines+=("Remaining manual steps:")
   lines+=("  1. Run 'npm install' in mas/ (if not done)")
   lines+=("  2. Copy .env from a teammate (IMS credentials)")
-  if [ "$INSTALLED_MCPS" -gt 0 ]; then
-    lines+=("  3. Authenticate MAS MCP: cd mas-mcp-server && npm run auth")
-  fi
   lines+=("")
   lines+=("Try it: open Claude Code in mas/ and run /start-ticket")
   lines+=("")
@@ -1041,6 +1149,7 @@ case "$MODE" in
     INSTALLED_PLUGINS=true
     phase_mcp
     phase_worktrees
+    phase_shell_helpers
     phase_summary
     ;;
   config)
@@ -1048,6 +1157,7 @@ case "$MODE" in
     phase_config
     phase_user_skills
     phase_secret_hooks
+    phase_shell_helpers
     info "Config installed."
     ;;
   plugins)

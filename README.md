@@ -6,7 +6,7 @@ Team Claude Code setup for [Merch at Scale (MAS)](https://github.com/adobecom/ma
 
 This repo bundles the Claude Code configuration used by the MAS team — coding rules, skills, commands, agents, Python hooks, plugins, and MCP servers — into a one-command installer with an interactive wizard.
 
-**What gets installed:**
+**What gets installed in `mas/.claude/` (project-level):**
 
 | Component | Count | What it does |
 |-----------|-------|--------------|
@@ -14,11 +14,20 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 | Skills | 24 | `/start-ticket`, `/review-pr`, `/nala-writer`, `/nala-runner`, `/sync-with-main`, ... |
 | Commands | 13 | `/audit-changes`, `/build-swc`, `/mas-lint-fix`, `/mas-test`, `/tickets`, ... |
 | Agents | 15 | Specialized agents for fragment ops, NALA authoring, card development, ... |
-| Hooks | 13 scripts | ESLint + Prettier on save, session tracking, compaction prep |
+| Hooks | 16 scripts | ESLint + Prettier on save, **secret-leak prevention**, session tracking, compaction prep |
 | Mental models | 1 | `mas-architect` — reviewer-style mental model for pre-submission self-review (`/mental-model:mas-architect:plan`, `:question`, `:self-improve`) |
-| Plugins | Up to 10 | context7, superpowers, playwright, chrome-devtools, commit-commands, github, figma, challenge, ... |
-| MCP servers | Up to 4 | corp-jira, GitHub, MAS fragments, FluffyJaws |
-| Worktree manager | 1 script | Run multiple MAS branches simultaneously on different ports |
+| Plugins | Up to 10 | context7, superpowers, playwright, chrome-devtools, commit-commands, figma, challenge, ... |
+
+**What gets installed in `~/.claude/` (user-level, all projects):**
+
+| Component | What it does |
+|-----------|--------------|
+| Secret-leak hooks | Block writes containing PATs, AWS keys, PEM keys, etc. (override marker: `<!-- secret-ok: reason -->`) |
+| `/scan-secrets` command | One-shot audit for existing credentials on disk |
+| `claude-mas` shell helper | `claude-mas MWPW-XXX` opens Claude Code in that worktree (auto-creates if missing); `mas` cds to main repo |
+| MCP servers | 3: corp-jira, adobe-wiki, fluffyjaws (see [MCP Servers](#mcp-servers) below) |
+
+**Plus**: a `wt` worktree manager script in `adobe/worktrees/` for running multiple MAS branches simultaneously on different ports.
 
 ## Quick Start
 
@@ -43,8 +52,8 @@ The wizard will:
 
 - **node v20+** and **npm**
 - **Claude Code CLI** — [install guide](https://claude.ai/code)
-- **gh CLI** — [install guide](https://cli.github.com) + run `gh auth login`
-- **uv** — the wizard will offer to install this if missing
+- **gh CLI** — required (no GitHub MCP). [install guide](https://cli.github.com) + run `gh auth login`
+- **uv** — required (used by the auto-format + secret-leak hooks). `brew install uv` if missing — the wizard will check.
 
 ## Partial Re-runs
 
@@ -57,32 +66,53 @@ The wizard will:
 
 ## MCP Servers
 
-The wizard sets up the following MCP servers:
+The wizard sets up three MCP servers. GitHub is intentionally **not** an MCP — we use the `gh` CLI directly (one less PAT to manage, no `npm install -g`).
 
 ### corp-jira
 - **Purpose:** Read/create/update Jira tickets from Claude
 - **Used by:** `/start-ticket`, `/tickets`, `/jira-ticket-creator`
+- **Source:** `Adobe-AIFoundations/adobe-mcp-servers` → `src/corp-jira` (cloned to `adobe/adobe-mcp-servers/`)
 - **Setup:** Requires a [Jira Personal Access Token](https://jira.corp.adobe.com) — the wizard prompts for it
-- **Source:** Cloned from `adobecom/remote-corp-jira-mcp`
 
-### GitHub
-- **Purpose:** Interact with GitHub PRs, issues, and repos
-- **Used by:** `/review-pr`, `/mas-pr-creator`
-- **Setup:** Can use your existing `gh auth` or a separate [GitHub PAT](https://github.com/settings/tokens)
-
-### MAS Content Fragments
-- **Purpose:** Search, create, and publish AEM content fragments
-- **Used by:** `/test-mcp`, fragment operations, bulk publish
-- **Setup:** Points to `mas/mas-mcp-server/`. The wizard builds it if needed.
-- **Note:** Requires separate IMS authentication: `cd mas/mas-mcp-server && npm run auth`
+### adobe-wiki
+- **Purpose:** Read, search, update, and comment on Adobe Wiki pages (wiki.corp.adobe.com)
+- **Useful for:** runbooks, internal docs, PR-context lookup
+- **Source:** Same monorepo (`Adobe-AIFoundations/adobe-mcp-servers` → `src/adobe-wiki`)
+- **Setup:** Requires a Wiki Personal Access Token — the wizard prompts for it
 
 ### FluffyJaws
 - **Purpose:** Search Adobe internal Slack, wiki, Jira, AEM docs, pipelines, and tenants
 - **Used by:** `/start-ticket` context gathering, AEM/Adobe questions
 - **Setup:** Requires the `fj` CLI (Adobe internal — get it from `go/fluffyjaws` or a teammate). The wizard runs `fj login` if not authenticated.
-- **Note:** If `fj` isn't installed yet, the wizard will print instructions. Re-run `./install.sh --mcp-only` after installing.
+
+> **GitHub:** Use `gh pr create`, `gh pr edit`, `gh api`, etc. directly. The wizard checks that `gh` is installed and authed; instructs `gh auth login` if not.
+
+> **MAS content fragments:** The `mas-mcp-server` source isn't on `origin/main` yet (lives on the unmerged MWPW-183572 branch). When it lands on main, this section will return.
 
 > **NALA:** The nala skills (`/nala-writer`, `/nala-runner`, `/nala`) are included in the config bundle and work without any MCP server.
+
+## Shell Helpers
+
+The wizard installs two shell functions into `~/.zshrc` and `~/.bashrc` (inside a managed block — safe to re-run, idempotent):
+
+```bash
+claude-mas MWPW-123456   # opens Claude Code in that worktree (creates via 'wt new' if missing)
+claude-mas main          # opens Claude Code in main mas repo
+claude-mas               # same as 'claude-mas main'
+mas                      # cd into main mas repo
+```
+
+After `./install.sh` finishes, `source ~/.zshrc` (or restart your shell) once to start using them.
+
+## Secret-Leak Prevention
+
+Three PreToolUse hooks installed at user level:
+
+- **`secret_leak_gate.py`** — blocks Write/Edit/MultiEdit/Bash if it detects credentials (GitHub/Figma/Slack PATs, AWS keys, AEM/Jira tokens, PEM keys, db URIs with auth, high-entropy strings in `.claude/` paths). Override: `<!-- secret-ok: <reason ≥3 chars> -->`.
+- **`pr_secret_scan.py`** — runs on `gh pr create`/`gh pr edit` and scans the diff vs `origin/main` + the PR body.
+- **`/scan-secrets`** slash command — one-shot audit of existing credentials sitting in `~/.claude/`, `mas/.claude/`, and `mas-claude-config/`. Outputs redacted findings.
+
+Existing credentials surfaced by `/scan-secrets` should be **rotated** (not just deleted from the file) — if they leaked to a backup, the rotation is what protects you.
 
 ## Mental Models
 
@@ -122,6 +152,16 @@ git pull
 ```
 
 Your existing `.env`, `settings.local.json`, and MCP tokens are never overwritten.
+
+### Migration notes (for upgraders)
+
+When `./install.sh` finishes, it surfaces drift from previous wizard versions:
+
+- **Old Jira MCP clone** at `adobe/remote-corp-jira-mcp/` — the Jira MCP moved to `Adobe-AIFoundations/adobe-mcp-servers`. The wizard prints a warning and suggests `rm -rf` to clean up the old clone. Your Jira PAT is preserved in `~/.claude/mcp.json` — only the entry-point path is updated.
+- **Stale `mas` MCP entry** in `~/.claude/mcp.json` pointing to a now-missing `mas-mcp-server/` path — the wizard prints a warning and suggests `claude mcp remove mas`. (The MAS MCP was removed from the wizard pending `mas-mcp-server` landing on `origin/main`.)
+- **GitHub MCP** — if you had it from a previous version, it's left untouched. The wizard no longer prompts for it. Remove it manually with `claude mcp remove github` if you want.
+
+All migration notes are advisory — the wizard never auto-deletes anything from your machine.
 
 ## Customizing
 
