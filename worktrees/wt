@@ -8,6 +8,9 @@
 #   wt auth [branch]                   – patch auth session for worktree port
 #   wt test [branch] [playwright args] – run nala tests for a worktree
 #   wt mcp [start|stop|status] [port]  – manage local MCP HTTP server
+#   wt sync-claude <branch>            – symlink .claude/hooks to mas/.claude/hooks
+#                                        (one-shot fix for older worktrees missing
+#                                         auto-format hooks)
 
 set -e
 
@@ -615,19 +618,44 @@ cmd_focus() {
     echo "→ focus: $branch"
 }
 
+cmd_sync_claude() {
+    local branch="$1"
+    if [[ -z "$branch" ]]; then
+        echo "Usage: wt sync-claude <branch>" >&2
+        exit 1
+    fi
+    local dest="$WORKTREES_DIR/$branch"
+    if [[ ! -d "$dest" ]]; then
+        echo "✗ worktree $dest not found" >&2
+        exit 1
+    fi
+    local hooks="$dest/.claude/hooks"
+    if [[ -L "$hooks" ]]; then
+        echo "✓ $branch already linked to canonical hooks"
+        return
+    fi
+    if [[ -d "$hooks" ]]; then
+        rm -rf "$hooks"
+    fi
+    mkdir -p "$dest/.claude"
+    ln -s "$MAS_DIR/.claude/hooks" "$hooks"
+    echo "→ linked $hooks → $MAS_DIR/.claude/hooks"
+}
+
 # ── dispatch ──────────────────────────────────────────────────────────────────
 
 CMD="${1:-list}"
 shift || true
 
 case "$CMD" in
-    new)   cmd_new "$@" ;;
-    start) cmd_start "$@" ;;
-    stop)  cmd_stop "$@" ;;
-    list)  cmd_list ;;
-    auth)  cmd_auth "$@" ;;
-    test)  cmd_test "$@" ;;
-    mcp)   cmd_mcp "$@" ;;
-    focus) cmd_focus "$@" ;;
-    *)     echo "Usage: wt <new|start|stop|list|auth|test|mcp|focus> [args]"; exit 1 ;;
+    new)          cmd_new "$@" ;;
+    start)        cmd_start "$@" ;;
+    stop)         cmd_stop "$@" ;;
+    list)         cmd_list ;;
+    auth)         cmd_auth "$@" ;;
+    test)         cmd_test "$@" ;;
+    mcp)          cmd_mcp "$@" ;;
+    focus)        cmd_focus "$@" ;;
+    sync-claude)  cmd_sync_claude "$@" ;;
+    *)            echo "Usage: wt <new|start|stop|list|auth|test|mcp|focus|sync-claude> [args]"; exit 1 ;;
 esac
