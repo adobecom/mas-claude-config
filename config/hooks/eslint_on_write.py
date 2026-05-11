@@ -4,7 +4,12 @@
 # ///
 """
 PostToolUse hook: runs eslint --fix on JS files written/edited by Claude Code
-inside apps/experience-qa/ using the root-level ESLint 9 flat config.
+that match the mas lint targets:
+  - web-components/**/*.{js,mjs,cjs}
+  - studio/**/*.{js,mjs,cjs}
+
+Resolves the mas root by walking up from CLAUDE_PROJECT_DIR looking for a
+`node_modules/.bin/eslint`. Handles both the main mas repo and worktrees.
 """
 
 import json
@@ -13,8 +18,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+MAS_SUBDIRS = {'web-components', 'studio'}
 TARGET_EXTENSIONS = {'.js', '.mjs', '.cjs'}
-TARGET_SUBDIR = 'apps/experience-qa'
+
+
+def find_mas_root(start: Path) -> Path | None:
+    for candidate in [start, *start.parents]:
+        if (candidate / 'node_modules' / '.bin' / 'eslint').exists():
+            return candidate
+    return None
 
 
 def main():
@@ -28,27 +40,34 @@ def main():
         if not file_path:
             sys.exit(0)
 
-        path = Path(file_path)
+        path = Path(file_path).resolve()
 
         if path.suffix not in TARGET_EXTENSIONS:
             sys.exit(0)
 
-        project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', ''))
-        target_root = project_dir / TARGET_SUBDIR
+        project_dir = Path(os.environ.get('CLAUDE_PROJECT_DIR', '')).resolve()
+        if not project_dir.exists():
+            sys.exit(0)
+
+        mas_root = find_mas_root(project_dir)
+        if mas_root is None:
+            sys.exit(0)
 
         try:
-            path.relative_to(target_root)
+            rel = path.relative_to(mas_root)
         except ValueError:
             sys.exit(0)
 
-        eslint_bin = project_dir / 'node_modules' / '.bin' / 'eslint'
-        if not eslint_bin.exists():
+        if not rel.parts or rel.parts[0] not in MAS_SUBDIRS:
             sys.exit(0)
+
+        eslint_bin = mas_root / 'node_modules' / '.bin' / 'eslint'
 
         subprocess.run(
             [str(eslint_bin), '--fix', str(path)],
-            cwd=str(project_dir),
+            cwd=str(mas_root),
             capture_output=True,
+            timeout=15,
         )
 
         sys.exit(0)

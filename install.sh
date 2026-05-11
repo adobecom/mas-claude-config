@@ -40,6 +40,7 @@ print_banner() {
   echo -e "${BOLD}║${NC}  Sets up your Claude Code environment for MAS development:   ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Coding rules, skills, commands, agents                    ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Auto-linting hooks (ESLint + Prettier on save)            ${BOLD}║${NC}"
+  echo -e "${BOLD}║${NC}  • Secret-leak prevention hooks (blocks credentials)         ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Claude Code plugins                                       ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • MCP servers (Jira, GitHub, MAS fragments)                 ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Worktree manager for parallel branch testing              ${BOLD}║${NC}"
@@ -818,6 +819,125 @@ PYEOF
   fi
 }
 
+# ─── Phase: Secret-leak prevention hooks ─────────────────────────────────────
+
+phase_secret_hooks() {
+  section "Secret-Leak Prevention Hooks"
+
+  echo "  Installs PreToolUse hooks that block writes containing credentials"
+  echo "  (GitHub PATs, AWS keys, Figma/Slack/OpenAI/Anthropic tokens, PEM keys,"
+  echo "  DB URIs with passwords, and high-entropy strings in .claude/ files)."
+  echo ""
+  echo "  Plus a 'gh pr create|edit' diff scanner and an audit script (/scan-secrets)."
+  echo ""
+  echo "  Override marker for documented references:  <!-- secret-ok: <reason> -->"
+  echo ""
+
+  local install_hooks
+  install_hooks=$(prompt_yn "Install secret-leak prevention hooks?" "y")
+  if [ "$install_hooks" != "y" ]; then
+    return
+  fi
+
+  local hooks_src="$SCRIPT_DIR/config/hooks"
+  local hooks_dest="$HOME/.claude/hooks"
+  mkdir -p "$hooks_dest" "$hooks_dest/scripts" "$HOME/.claude/commands"
+
+  # Copy the 3 hook files + 1 audit script
+  for f in _secret_rules.py secret_leak_gate.py pr_secret_scan.py; do
+    cp "$hooks_src/$f" "$hooks_dest/$f"
+    info "Installed: ~/.claude/hooks/$f"
+  done
+  cp "$hooks_src/scripts/scan-existing-secrets.py" "$hooks_dest/scripts/scan-existing-secrets.py"
+  info "Installed: ~/.claude/hooks/scripts/scan-existing-secrets.py"
+
+  chmod +x "$hooks_dest/secret_leak_gate.py" \
+           "$hooks_dest/pr_secret_scan.py" \
+           "$hooks_dest/scripts/scan-existing-secrets.py"
+
+  # Copy the slash command (lives in user's commands dir, not the project)
+  if [ -f "$SCRIPT_DIR/config/commands/scan-secrets.md" ]; then
+    cp "$SCRIPT_DIR/config/commands/scan-secrets.md" "$HOME/.claude/commands/scan-secrets.md"
+    info "Installed slash command: /scan-secrets"
+  fi
+
+  # Merge the two PreToolUse matcher blocks into ~/.claude/settings.json
+  # Use Python so we can do a structured merge — bash JSON editing is error-prone.
+  local settings_path="$HOME/.claude/settings.json"
+  python3 - "$settings_path" "$hooks_dest" <<'PYEOF'
+import json
+import sys
+from pathlib import Path
+
+settings_path = Path(sys.argv[1])
+hooks_dest = sys.argv[2]
+
+LEAK_HOOK = {
+    "matcher": "Write|Edit|MultiEdit|Bash",
+    "hooks": [{
+        "type": "command",
+        "command": f"uv run {hooks_dest}/secret_leak_gate.py",
+    }],
+}
+PR_HOOK = {
+    "matcher": "Bash",
+    "hooks": [{
+        "type": "command",
+        "command": f"uv run {hooks_dest}/pr_secret_scan.py",
+    }],
+}
+
+if settings_path.exists():
+    try:
+        s = json.loads(settings_path.read_text())
+    except Exception:
+        s = {}
+else:
+    s = {}
+
+s.setdefault("hooks", {})
+pre = s["hooks"].setdefault("PreToolUse", [])
+
+def already_wired(target_cmd: str) -> bool:
+    for block in pre:
+        for h in block.get("hooks", []) or []:
+            if isinstance(h, dict) and target_cmd in (h.get("command") or ""):
+                return True
+    return False
+
+added = 0
+if not already_wired("secret_leak_gate.py"):
+    pre.insert(0, LEAK_HOOK)
+    added += 1
+if not already_wired("pr_secret_scan.py"):
+    insert_at = 1 if added else 0
+    pre.insert(insert_at, PR_HOOK)
+    added += 1
+
+settings_path.parent.mkdir(parents=True, exist_ok=True)
+settings_path.write_text(json.dumps(s, indent=2) + "\n")
+print(f"settings.json: added {added} new matcher block(s)")
+PYEOF
+
+  info "Wired hooks in ~/.claude/settings.json"
+
+  # Sanity check: run the audit script to surface any existing leaks the user should rotate.
+  echo ""
+  step "Running one-shot audit to surface existing leaks (if any)..."
+  set +e
+  python3 "$hooks_dest/scripts/scan-existing-secrets.py" 2>&1 | tail -40
+  local audit_exit=$?
+  set -e
+  if [ "$audit_exit" -ne 0 ]; then
+    echo ""
+    warn "Audit found existing secrets — rotate them and remove from disk."
+    note "Re-run anytime with:  /scan-secrets  (in Claude Code)"
+    note "Or directly:          python3 ~/.claude/hooks/scripts/scan-existing-secrets.py"
+  else
+    info "No leaks found."
+  fi
+}
+
 # ─── Phase: Worktrees ─────────────────────────────────────────────────────────
 
 phase_worktrees() {
@@ -916,6 +1036,7 @@ case "$MODE" in
     phase_config
     INSTALLED_CONFIG=true
     phase_user_skills
+    phase_secret_hooks
     phase_plugins
     INSTALLED_PLUGINS=true
     phase_mcp
@@ -926,6 +1047,7 @@ case "$MODE" in
     phase_prerequisites
     phase_config
     phase_user_skills
+    phase_secret_hooks
     info "Config installed."
     ;;
   plugins)
