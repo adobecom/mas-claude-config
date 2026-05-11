@@ -583,7 +583,15 @@ phase_mcp() {
         warn "Run manually: cd $adobe_mcps_dir/src/corp-jira && npm install && npm run build"
       else
         echo ""
-        note "  Get your Jira PAT: https://jira.corp.adobe.com → Profile → Personal Access Tokens"
+        note "  Create a Jira PAT:"
+        note "    1. https://jira.corp.adobe.com/secure/ViewProfile.jspa"
+        note "    2. → Personal Access Tokens → Create token (any name, default scopes)"
+        note "  Verify it works before pasting:"
+        note "    curl -H \"Authorization: Bearer <PAT>\" \\"
+        note "         \"https://jira.corp.adobe.com/rest/api/3/myself\""
+        note "  Full troubleshooting (CAPTCHA, 302/401, etc.):"
+        note "    https://github.com/Adobe-AIFoundations/adobe-mcp-servers/tree/main/src/corp-jira"
+        echo ""
         local jira_pat
         jira_pat=$(prompt_input "Jira Personal Access Token (hidden)" "" "true")
 
@@ -646,7 +654,12 @@ phase_mcp() {
         warn "Run manually: cd $adobe_mcps_dir/src/adobe-wiki && npm install && npm run build"
       else
         echo ""
-        note "  Get your Wiki PAT: https://wiki.corp.adobe.com → Profile → Personal Access Tokens"
+        note "  Create a Wiki PAT:"
+        note "    1. https://wiki.corp.adobe.com → avatar → Settings → Personal Access Tokens"
+        note "    2. Create token (any name, default scopes), copy it"
+        note "  Upstream docs (tools, PlantUML, Confluence storage format):"
+        note "    https://github.com/Adobe-AIFoundations/adobe-mcp-servers/tree/main/src/adobe-wiki"
+        echo ""
         local wiki_pat
         wiki_pat=$(prompt_input "Wiki Personal Access Token (hidden)" "" "true")
 
