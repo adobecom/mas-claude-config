@@ -42,8 +42,8 @@ print_banner() {
   echo -e "${BOLD}║${NC}  • Auto-linting hooks (ESLint + Prettier on save)            ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Secret-leak prevention hooks (blocks credentials)         ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Claude Code plugins                                       ${BOLD}║${NC}"
-  echo -e "${BOLD}║${NC}  • MCP servers (Jira, GitHub, MAS fragments)                 ${BOLD}║${NC}"
-  echo -e "${BOLD}║${NC}  • Worktree manager for parallel branch testing              ${BOLD}║${NC}"
+  echo -e "${BOLD}║${NC}  • MCP servers (Jira, MAS fragments, FluffyJaws)             ${BOLD}║${NC}"
+  echo -e "${BOLD}║${NC}  • Worktree manager + claude-mas shell helper                ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}                                                              ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  ${DIM}Takes about 3–5 minutes. Safe to re-run anytime.${NC}           ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}                                                              ${BOLD}║${NC}"
@@ -594,54 +594,22 @@ phase_mcp() {
 
   echo ""
 
-  # ── 2. GitHub ────────────────────────────────────────────────────────────────
+  # ── 2. GitHub (gh CLI, no MCP) ───────────────────────────────────────────────
   echo -e "  ${BOLD}2/4  GitHub${NC}"
-  note "  Lets Claude interact with GitHub PRs, issues, and repos."
-  note "  Used by: /review-pr, /mas-pr-creator"
+  note "  We use the 'gh' CLI for GitHub interactions (PRs, issues, comments)."
+  note "  Used by: /review-pr, /mas-pr-creator, gh pr create/edit/comment"
   echo ""
 
-  if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
-    note "  You have 'gh' authenticated. You can use that (no extra config needed)"
-    note "  or set up the GitHub MCP server for richer integration."
-    local setup_gh
-    setup_gh=$(prompt_yn "Also set up GitHub MCP server?" "n")
-    if [ "$setup_gh" = "y" ]; then
-      local gh_pat
-      gh_pat=$(prompt_input "GitHub Personal Access Token (hidden)" "" "true")
-      if [ -n "$gh_pat" ]; then
-        add_mcp_server "github" "{
-          \"command\": \"npx\",
-          \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"],
-          \"env\": {
-            \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$gh_pat\"
-          }
-        }"
-        info "GitHub MCP configured"
-        ((mcps_configured++))
-      fi
+  if command -v gh >/dev/null 2>&1; then
+    if gh auth status >/dev/null 2>&1; then
+      info "gh CLI installed and authenticated"
     else
-      info "Using gh CLI (no MCP server needed)"
+      warn "gh CLI installed but not authenticated"
+      note "Run: gh auth login"
     fi
   else
-    local setup_gh
-    setup_gh=$(prompt_yn "Configure GitHub MCP server?" "y")
-    if [ "$setup_gh" = "y" ]; then
-      note "  Create a PAT at: https://github.com/settings/tokens"
-      note "  Required scopes: repo, read:org"
-      local gh_pat
-      gh_pat=$(prompt_input "GitHub Personal Access Token (hidden)" "" "true")
-      if [ -n "$gh_pat" ]; then
-        add_mcp_server "github" "{
-          \"command\": \"npx\",
-          \"args\": [\"-y\", \"@modelcontextprotocol/server-github\"],
-          \"env\": {
-            \"GITHUB_PERSONAL_ACCESS_TOKEN\": \"$gh_pat\"
-          }
-        }"
-        info "GitHub MCP configured"
-        ((mcps_configured++))
-      fi
-    fi
+    warn "gh CLI not found"
+    note "Install: brew install gh    (then run: gh auth login)"
   fi
 
   echo ""
@@ -1001,6 +969,91 @@ phase_worktrees() {
   fi
 }
 
+# ─── Phase: Shell helpers (claude-mas, mas) ───────────────────────────────────
+
+phase_shell_helpers() {
+  detect_paths
+
+  section "Shell Helpers"
+
+  echo "  Installs two shell functions you can use from any terminal:"
+  echo ""
+  echo -e "    ${DIM}claude-mas MWPW-123456   # open Claude Code in that worktree (creates if missing)${NC}"
+  echo -e "    ${DIM}claude-mas main          # open Claude Code in main mas repo${NC}"
+  echo -e "    ${DIM}claude-mas               # same as 'claude-mas main'${NC}"
+  echo -e "    ${DIM}mas                      # cd into main mas repo${NC}"
+  echo ""
+
+  local install_helpers
+  install_helpers=$(prompt_yn "Install shell helpers (claude-mas, mas)?" "y")
+  if [ "$install_helpers" != "y" ]; then
+    return
+  fi
+
+  local helper_src="$SCRIPT_DIR/scripts/claude-mas.sh"
+  if [ ! -f "$helper_src" ]; then
+    warn "scripts/claude-mas.sh not found in bundle"
+    return
+  fi
+
+  local marker_begin="# >>> mas-claude-config: claude-mas (managed) >>>"
+  local marker_end="# <<< mas-claude-config: claude-mas (managed) <<<"
+
+  local block_file
+  block_file=$(mktemp)
+  cat > "$block_file" <<EOF
+$marker_begin
+export ADOBE_DIR="$ADOBE_DIR"
+export MAS_DIR="$MAS_DIR"
+[ -f "$helper_src" ] && . "$helper_src"
+$marker_end
+EOF
+
+  local installed_any=0
+  for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+    # Skip non-existent rc files that aren't the default for this shell.
+    if [ ! -f "$rc" ]; then
+      case "$rc" in
+        *zshrc) [ -n "${ZSH_VERSION:-}" ] || [ "${SHELL##*/}" = "zsh" ] || continue ;;
+        *bashrc) [ -n "${BASH_VERSION:-}" ] || [ "${SHELL##*/}" = "bash" ] || continue ;;
+      esac
+    fi
+
+    if [ -f "$rc" ] && grep -q "mas-claude-config: claude-mas (managed)" "$rc"; then
+      # Update the existing block in-place via awk.
+      local tmp
+      tmp=$(mktemp)
+      awk -v b="$marker_begin" -v e="$marker_end" -v bf="$block_file" '
+        $0 == b {
+          while ((getline line < bf) > 0) print line
+          close(bf)
+          skip = 1
+          next
+        }
+        skip && $0 == e { skip = 0; next }
+        !skip { print }
+      ' "$rc" > "$tmp" && mv "$tmp" "$rc"
+      info "Updated managed block in $rc"
+    else
+      printf '\n' >> "$rc"
+      cat "$block_file" >> "$rc"
+      info "Appended managed block to $rc"
+    fi
+    installed_any=1
+  done
+
+  rm -f "$block_file"
+
+  if [ "$installed_any" -eq 1 ]; then
+    note "Run 'source ~/.zshrc' (or restart your shell) to start using:"
+    note "  claude-mas <branch>"
+    note "  mas"
+  else
+    warn "No shell rc files found — add this line manually to your shell rc:"
+    note "  . \"$helper_src\""
+  fi
+}
+
 # ─── Phase: Summary ───────────────────────────────────────────────────────────
 
 INSTALLED_CONFIG=false
@@ -1041,6 +1094,7 @@ case "$MODE" in
     INSTALLED_PLUGINS=true
     phase_mcp
     phase_worktrees
+    phase_shell_helpers
     phase_summary
     ;;
   config)
@@ -1048,6 +1102,7 @@ case "$MODE" in
     phase_config
     phase_user_skills
     phase_secret_hooks
+    phase_shell_helpers
     info "Config installed."
     ;;
   plugins)
