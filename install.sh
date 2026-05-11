@@ -42,7 +42,7 @@ print_banner() {
   echo -e "${BOLD}║${NC}  • Auto-linting hooks (ESLint + Prettier on save)            ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Secret-leak prevention hooks (blocks credentials)         ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Claude Code plugins                                       ${BOLD}║${NC}"
-  echo -e "${BOLD}║${NC}  • MCP servers (Jira, Wiki, MAS fragments, FluffyJaws)       ${BOLD}║${NC}"
+  echo -e "${BOLD}║${NC}  • MCP servers (Jira, Wiki, FluffyJaws)                      ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Worktree manager + claude-mas shell helper                ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}                                                              ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  ${DIM}Takes about 3–5 minutes. Safe to re-run anytime.${NC}           ${BOLD}║${NC}"
@@ -568,7 +568,7 @@ phase_mcp() {
   }
 
   # ── 1. corp-jira ────────────────────────────────────────────────────────────
-  echo -e "  ${BOLD}1/5  Corp Jira${NC}"
+  echo -e "  ${BOLD}1/4  Corp Jira${NC}"
   note "  Lets Claude read, create, and update Jira tickets."
   note "  Used by: /start-ticket, /tickets, /jira-ticket-creator"
   echo ""
@@ -611,7 +611,7 @@ phase_mcp() {
   echo ""
 
   # ── 2. GitHub (gh CLI, no MCP) ───────────────────────────────────────────────
-  echo -e "  ${BOLD}2/5  GitHub${NC}"
+  echo -e "  ${BOLD}2/4  GitHub${NC}"
   note "  We use the 'gh' CLI for GitHub interactions (PRs, issues, comments)."
   note "  Used by: /review-pr, /mas-pr-creator, gh pr create/edit/comment"
   echo ""
@@ -630,50 +630,8 @@ phase_mcp() {
 
   echo ""
 
-  # ── 3. MAS Content Fragments ─────────────────────────────────────────────────
-  echo -e "  ${BOLD}3/5  MAS Content Fragments${NC}"
-  note "  Lets Claude search, create, and publish AEM content fragments."
-  note "  Used by: /test-mcp, fragment operations, bulk publish"
-  echo ""
-
-  local setup_mas
-  setup_mas=$(prompt_yn "Configure MAS MCP server?" "y")
-  if [ "$setup_mas" = "y" ]; then
-    local mas_mcp_dir="$MAS_DIR/mas-mcp-server"
-    local mas_entry="$mas_mcp_dir/dist/index.js"
-
-    if [ ! -d "$mas_mcp_dir" ]; then
-      warn "MAS MCP server not found at $mas_mcp_dir"
-      warn "Make sure you have the full MAS repo and run 'npm install'"
-    else
-      # Build if dist/ is missing or stale
-      if [ ! -f "$mas_entry" ]; then
-        step "Building MAS MCP server..."
-        (cd "$mas_mcp_dir" && npm install --silent && npm run build --silent 2>/dev/null || true)
-      fi
-
-      if [ -f "$mas_entry" ]; then
-        add_mcp_server "mas" "{
-          \"command\": \"node\",
-          \"args\": [\"$mas_entry\"],
-          \"env\": {}
-        }"
-        enable_mcp_in_settings "mas"
-        info "MAS MCP configured → $mas_entry"
-        ((mcps_configured++))
-        echo ""
-        warn "IMS authentication required separately:"
-        note "  cd $mas_mcp_dir && npm run auth"
-      else
-        warn "Build failed — check $mas_mcp_dir for errors"
-      fi
-    fi
-  fi
-
-  echo ""
-
-  # ── 4. Adobe Wiki ────────────────────────────────────────────────────────────
-  echo -e "  ${BOLD}4/5  Adobe Wiki${NC}"
+  # ── 3. Adobe Wiki ────────────────────────────────────────────────────────────
+  echo -e "  ${BOLD}3/4  Adobe Wiki${NC}"
   note "  Lets Claude read, search, update, and comment on Adobe Wiki (wiki.corp.adobe.com)."
   note "  Useful for: runbooks, internal docs, PR-context lookup."
   echo ""
@@ -713,8 +671,8 @@ phase_mcp() {
 
   echo ""
 
-  # ── 5. FluffyJaws ────────────────────────────────────────────────────────────
-  echo -e "  ${BOLD}5/5  FluffyJaws (Adobe internal knowledge)${NC}"
+  # ── 4. FluffyJaws ────────────────────────────────────────────────────────────
+  echo -e "  ${BOLD}4/4  FluffyJaws (Adobe internal knowledge)${NC}"
   note "  Searches Slack, wiki, Jira, AEM docs, and pipeline infrastructure."
   note "  Used by: /start-ticket context gathering, AEM/Adobe questions"
   echo ""
@@ -1126,9 +1084,6 @@ phase_summary() {
   lines+=("Remaining manual steps:")
   lines+=("  1. Run 'npm install' in mas/ (if not done)")
   lines+=("  2. Copy .env from a teammate (IMS credentials)")
-  if [ "$INSTALLED_MCPS" -gt 0 ]; then
-    lines+=("  3. Authenticate MAS MCP: cd mas-mcp-server && npm run auth")
-  fi
   lines+=("")
   lines+=("Try it: open Claude Code in mas/ and run /start-ticket")
   lines+=("")
