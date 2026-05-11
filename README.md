@@ -72,13 +72,44 @@ The wizard sets up three MCP servers. GitHub is intentionally **not** an MCP —
 - **Purpose:** Read/create/update Jira tickets from Claude
 - **Used by:** `/start-ticket`, `/tickets`, `/jira-ticket-creator`
 - **Source:** `Adobe-AIFoundations/adobe-mcp-servers` → `src/corp-jira` (cloned to `adobe/adobe-mcp-servers/`)
-- **Setup:** Requires a [Jira Personal Access Token](https://jira.corp.adobe.com) — the wizard prompts for it
+- **Upstream docs:** [src/corp-jira/README.md](https://github.com/Adobe-AIFoundations/adobe-mcp-servers/tree/main/src/corp-jira) — full troubleshooting, transport modes, tool reference
+
+**Getting your PAT** (the wizard prompts for it):
+
+1. Open https://jira.corp.adobe.com/secure/ViewProfile.jspa
+2. Click **Personal Access Tokens** in the left sidebar
+3. Create a new token (any name; default scopes are fine)
+4. Copy the token — Jira shows it once
+
+**Verify your PAT works** before pasting it into the wizard:
+
+```bash
+curl -H "Authorization: Bearer YOUR_PAT_TOKEN" \
+     -H "Accept: application/json" \
+     "https://jira.corp.adobe.com/rest/api/3/myself"
+```
+
+Expected: a JSON body with your user info. A 302 or 401 means the PAT is invalid, expired, or lacking permissions.
+
+**CAPTCHA challenge:** If the response includes `X-Authentication-Denied-Reason: CAPTCHA_CHALLENGE`, your Jira account is locked. Open https://developer-paas.pe.corp.adobe.com and unlock — access restores immediately.
+
+**Manual reconfigure** (if the wizard skipped it or you need to update the PAT):
+
+```bash
+claude mcp remove corp-jira     # if a stale entry exists
+./install.sh --mcp-only         # re-runs only the MCP setup
+```
 
 ### adobe-wiki
 - **Purpose:** Read, search, update, and comment on Adobe Wiki pages (wiki.corp.adobe.com)
 - **Useful for:** runbooks, internal docs, PR-context lookup
 - **Source:** Same monorepo (`Adobe-AIFoundations/adobe-mcp-servers` → `src/adobe-wiki`)
-- **Setup:** Requires a Wiki Personal Access Token — the wizard prompts for it
+- **Upstream docs:** [src/adobe-wiki/README.md](https://github.com/Adobe-AIFoundations/adobe-mcp-servers/tree/main/src/adobe-wiki) — tool reference, PlantUML/asset support, Confluence storage format
+
+**Getting your PAT**:
+1. Open https://wiki.corp.adobe.com → click your avatar → **Settings** → **Personal access tokens**
+2. Create a token (any name; default scopes are fine), copy it
+3. Paste into the wizard when prompted
 
 ### FluffyJaws
 - **Purpose:** Search Adobe internal Slack, wiki, Jira, AEM docs, pipelines, and tenants
