@@ -711,6 +711,49 @@ phase_mcp() {
 
   echo ""
   info "$mcps_configured MCP server(s) configured"
+
+  # ── Migration notes for upgraders ──────────────────────────────────────────
+  # Surface drift between the old wizard layout and the new one. Read-only —
+  # we never delete anything for the user, just flag what's stale.
+
+  local old_jira_clone="$ADOBE_DIR/remote-corp-jira-mcp"
+  if [ -d "$old_jira_clone" ]; then
+    echo ""
+    warn "Old Jira MCP clone detected at: $old_jira_clone"
+    note "The Jira MCP source moved to Adobe-AIFoundations/adobe-mcp-servers."
+    note "Safe to delete the old clone:"
+    note "  rm -rf $old_jira_clone"
+  fi
+
+  # MAS MCP entry left over from the old wizard: it pointed at a path that may
+  # no longer exist (mas-mcp-server source isn't on origin/main).
+  if [ -f "$MCP_JSON_PATH" ]; then
+    local stale_mas_entry
+    stale_mas_entry=$(python3 - <<'PYEOF'
+import json, os, sys
+mcp_path = os.path.expanduser("~/.claude/mcp.json")
+try:
+    cfg = json.loads(open(mcp_path).read())
+except Exception:
+    sys.exit(0)
+mas = cfg.get("servers", {}).get("mas")
+if not mas:
+    sys.exit(0)
+args = mas.get("args") or []
+entry = args[0] if args else None
+if entry and not os.path.exists(entry):
+    print(entry)
+PYEOF
+    )
+    if [ -n "$stale_mas_entry" ]; then
+      echo ""
+      warn "MAS MCP entry in ~/.claude/mcp.json points to a missing path:"
+      note "  $stale_mas_entry"
+      note "The 'mas' MCP was removed from this wizard (source isn't on origin/main yet)."
+      note "Clean up the orphan entry with:"
+      note "  claude mcp remove mas"
+    fi
+  fi
 }
 
 # ─── Phase: User-level skills & statusline ───────────────────────────────────
