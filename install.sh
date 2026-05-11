@@ -42,7 +42,7 @@ print_banner() {
   echo -e "${BOLD}║${NC}  • Auto-linting hooks (ESLint + Prettier on save)            ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Secret-leak prevention hooks (blocks credentials)         ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Claude Code plugins                                       ${BOLD}║${NC}"
-  echo -e "${BOLD}║${NC}  • MCP servers (Jira, MAS fragments, FluffyJaws)             ${BOLD}║${NC}"
+  echo -e "${BOLD}║${NC}  • MCP servers (Jira, Wiki, MAS fragments, FluffyJaws)       ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  • Worktree manager + claude-mas shell helper                ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}                                                              ${BOLD}║${NC}"
   echo -e "${BOLD}║${NC}  ${DIM}Takes about 3–5 minutes. Safe to re-run anytime.${NC}           ${BOLD}║${NC}"
@@ -545,8 +545,30 @@ phase_mcp() {
 
   local mcps_configured=0
 
+  # ── Shared: Adobe-AIFoundations/adobe-mcp-servers monorepo ──────────────────
+  # Both corp-jira and adobe-wiki ship from this monorepo. Clone once.
+  local adobe_mcps_dir="$ADOBE_DIR/adobe-mcp-servers"
+  ensure_adobe_mcps_monorepo() {
+    local subdir="$1"  # e.g. "src/corp-jira"
+    if [ ! -d "$adobe_mcps_dir" ]; then
+      step "Cloning Adobe-AIFoundations/adobe-mcp-servers..."
+      if ! git clone --quiet git@github.com:Adobe-AIFoundations/adobe-mcp-servers.git "$adobe_mcps_dir" 2>/dev/null; then
+        warn "git clone failed — make sure you have access to Adobe-AIFoundations/adobe-mcp-servers"
+        note "Visit https://github.com/Adobe-AIFoundations/adobe-mcp-servers to request access."
+        return 1
+      fi
+    fi
+    # Build the requested subdir if dist/ is missing.
+    local sub="$adobe_mcps_dir/$subdir"
+    if [ ! -f "$sub/dist/index.js" ] && [ -d "$sub" ]; then
+      step "Building $subdir..."
+      (cd "$sub" && npm install --silent && npm run build --silent 2>/dev/null || true)
+    fi
+    return 0
+  }
+
   # ── 1. corp-jira ────────────────────────────────────────────────────────────
-  echo -e "  ${BOLD}1/4  Corp Jira${NC}"
+  echo -e "  ${BOLD}1/5  Corp Jira${NC}"
   note "  Lets Claude read, create, and update Jira tickets."
   note "  Used by: /start-ticket, /tickets, /jira-ticket-creator"
   echo ""
@@ -554,48 +576,42 @@ phase_mcp() {
   local setup_jira
   setup_jira=$(prompt_yn "Configure corp-jira?" "y")
   if [ "$setup_jira" = "y" ]; then
-    # Clone the MCP server if not already present
-    local jira_mcp_dir="$ADOBE_DIR/remote-corp-jira-mcp"
-    if [ ! -d "$jira_mcp_dir" ]; then
-      step "Cloning adobecom/remote-corp-jira-mcp..."
-      git clone --quiet https://github.com/adobecom/remote-corp-jira-mcp.git "$jira_mcp_dir"
-      step "Building..."
-      (cd "$jira_mcp_dir" && npm install --silent && npm run build --silent 2>/dev/null || true)
-      info "Corp Jira MCP server ready"
-    else
-      info "Corp Jira MCP server already present: $jira_mcp_dir"
-    fi
+    if ensure_adobe_mcps_monorepo "src/corp-jira"; then
+      local jira_entry_point="$adobe_mcps_dir/src/corp-jira/dist/index.js"
+      if [ ! -f "$jira_entry_point" ]; then
+        warn "Build artifact not found at $jira_entry_point"
+        warn "Run manually: cd $adobe_mcps_dir/src/corp-jira && npm install && npm run build"
+      else
+        echo ""
+        note "  Get your Jira PAT: https://jira.corp.adobe.com → Profile → Personal Access Tokens"
+        local jira_pat
+        jira_pat=$(prompt_input "Jira Personal Access Token (hidden)" "" "true")
 
-    local jira_entry_point="$jira_mcp_dir/dist/index.js"
-    [ ! -f "$jira_entry_point" ] && jira_entry_point="$jira_mcp_dir/src/index.js"
-
-    echo ""
-    note "  Get your Jira PAT: https://jira.corp.adobe.com → Profile → Personal Access Tokens"
-    local jira_pat
-    jira_pat=$(prompt_input "Jira Personal Access Token (hidden)" "" "true")
-
-    if [ -n "$jira_pat" ]; then
-      local jira_email="${USER}@adobe.com"
-      add_mcp_server "corp-jira" "{
-        \"command\": \"node\",
-        \"args\": [\"$jira_entry_point\"],
-        \"env\": {
-          \"JIRA_PERSONAL_ACCESS_TOKEN\": \"$jira_pat\",
-          \"JIRA_EMAIL\": \"$jira_email\"
-        }
-      }"
-      enable_mcp_in_settings "corp-jira"
-      info "corp-jira configured"
-      ((mcps_configured++))
-    else
-      warn "Skipped (no PAT entered)"
+        if [ -n "$jira_pat" ]; then
+          local jira_email="${USER}@adobe.com"
+          add_mcp_server "corp-jira" "{
+            \"command\": \"node\",
+            \"args\": [\"$jira_entry_point\"],
+            \"env\": {
+              \"JIRA_PERSONAL_ACCESS_TOKEN\": \"$jira_pat\",
+              \"JIRA_EMAIL\": \"$jira_email\",
+              \"JIRA_API_BASE_URL\": \"https://jira.corp.adobe.com/rest/api/2\"
+            }
+          }"
+          enable_mcp_in_settings "corp-jira"
+          info "corp-jira configured"
+          ((mcps_configured++))
+        else
+          warn "Skipped (no PAT entered)"
+        fi
+      fi
     fi
   fi
 
   echo ""
 
   # ── 2. GitHub (gh CLI, no MCP) ───────────────────────────────────────────────
-  echo -e "  ${BOLD}2/4  GitHub${NC}"
+  echo -e "  ${BOLD}2/5  GitHub${NC}"
   note "  We use the 'gh' CLI for GitHub interactions (PRs, issues, comments)."
   note "  Used by: /review-pr, /mas-pr-creator, gh pr create/edit/comment"
   echo ""
@@ -615,7 +631,7 @@ phase_mcp() {
   echo ""
 
   # ── 3. MAS Content Fragments ─────────────────────────────────────────────────
-  echo -e "  ${BOLD}3/4  MAS Content Fragments${NC}"
+  echo -e "  ${BOLD}3/5  MAS Content Fragments${NC}"
   note "  Lets Claude search, create, and publish AEM content fragments."
   note "  Used by: /test-mcp, fragment operations, bulk publish"
   echo ""
@@ -656,8 +672,49 @@ phase_mcp() {
 
   echo ""
 
-  # ── 4. FluffyJaws ────────────────────────────────────────────────────────────
-  echo -e "  ${BOLD}4/4  FluffyJaws (Adobe internal knowledge)${NC}"
+  # ── 4. Adobe Wiki ────────────────────────────────────────────────────────────
+  echo -e "  ${BOLD}4/5  Adobe Wiki${NC}"
+  note "  Lets Claude read, search, update, and comment on Adobe Wiki (wiki.corp.adobe.com)."
+  note "  Useful for: runbooks, internal docs, PR-context lookup."
+  echo ""
+
+  local setup_wiki
+  setup_wiki=$(prompt_yn "Configure adobe-wiki MCP?" "y")
+  if [ "$setup_wiki" = "y" ]; then
+    if ensure_adobe_mcps_monorepo "src/adobe-wiki"; then
+      local wiki_entry_point="$adobe_mcps_dir/src/adobe-wiki/dist/index.js"
+      if [ ! -f "$wiki_entry_point" ]; then
+        warn "Build artifact not found at $wiki_entry_point"
+        warn "Run manually: cd $adobe_mcps_dir/src/adobe-wiki && npm install && npm run build"
+      else
+        echo ""
+        note "  Get your Wiki PAT: https://wiki.corp.adobe.com → Profile → Personal Access Tokens"
+        local wiki_pat
+        wiki_pat=$(prompt_input "Wiki Personal Access Token (hidden)" "" "true")
+
+        if [ -n "$wiki_pat" ]; then
+          add_mcp_server "adobe-wiki" "{
+            \"command\": \"node\",
+            \"args\": [\"$wiki_entry_point\"],
+            \"env\": {
+              \"WIKI_MCP_TOKEN\": \"$wiki_pat\",
+              \"WIKI_MCP_HOST\": \"wiki.corp.adobe.com\"
+            }
+          }"
+          enable_mcp_in_settings "adobe-wiki"
+          info "adobe-wiki configured"
+          ((mcps_configured++))
+        else
+          warn "Skipped (no PAT entered)"
+        fi
+      fi
+    fi
+  fi
+
+  echo ""
+
+  # ── 5. FluffyJaws ────────────────────────────────────────────────────────────
+  echo -e "  ${BOLD}5/5  FluffyJaws (Adobe internal knowledge)${NC}"
   note "  Searches Slack, wiki, Jira, AEM docs, and pipeline infrastructure."
   note "  Used by: /start-ticket context gathering, AEM/Adobe questions"
   echo ""
