@@ -29,6 +29,18 @@ bash worktrees/wt stop MWPW-123456
 
 # List all worktrees with port assignments and status
 bash worktrees/wt list
+
+# Repair an older worktree's .claude/hooks symlink (one-shot)
+bash worktrees/wt sync-claude MWPW-123456
+```
+
+### Shell helper
+
+`claude-mas` (installed into `~/.zshrc`/`~/.bashrc` by `mas-claude-config/install.sh`) is the one-liner version of `wt new` + `cd` + `claude`:
+
+```bash
+claude-mas MWPW-123456    # open Claude Code in worktree (creates via 'wt new' if missing)
+claude-mas main           # open Claude Code in main mas repo
 ```
 
 ## Port Assignment
@@ -53,6 +65,9 @@ Studio URL pattern: `http://localhost:<AEM_PORT>/studio.html`
 5. Patches `studio.html` for dynamic proxy port and IMS auth relay (see below)
 6. Symlinks `node_modules` from the main `mas` repo
 7. Symlinks `.env` from the main `mas` repo so Nala/Playwright picks up IMS credentials
+8. Symlinks `.claude/` (the entire dir, so worktrees inherit hooks, rules, skills, agents from main mas — keeps secret-leak and auto-format hooks active)
+9. Symlinks `CLAUDE.md` from the main `mas` repo
+10. Symlinks `specs/` from the main `mas` repo (shared speckit project specs)
 
 ## IMS Authentication (Non-3000 Ports)
 

@@ -1,3 +1,10 @@
+## Quick reference
+
+- `claude-mas MWPW-XXX` — open Claude Code in that worktree (auto-creates via `wt new`)
+- `/scan-secrets` — audit `~/.claude/`, `mas/.claude/`, `mas-claude-config/` for credentials sitting on disk
+- `<!-- secret-ok: <reason> -->` — escape hatch when writing intentional credential examples (rotation runbooks, format docs)
+- `bash worktrees/wt sync-claude <branch>` — repair an older worktree's `.claude/hooks/` symlink
+
 ## Superpowers Workflow
 
 - **Plans** → save to `.claude/plans/TICKET.md` (relative to current working directory — lands in the worktree if working from one)
