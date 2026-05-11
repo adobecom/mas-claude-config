@@ -40,7 +40,7 @@
 - When adding new functions/constants intended to be tested, export them from the module *before* writing the test — skip this and the first test run will fail with a module resolution error (learned from DESTRUCTIVE_TOOLS incident)
 - For MWPW-* branch audits, follow the wave structure (Wave 0 sync → Wave 1 ship blockers → Wave 2 dead code → Wave 3 hardening → Wave 4 coverage) via the `audit-wave` skill; update the plan doc as each item lands
 - After any security fix (auth, URL validation, prompt injection, ReDoS), run the full relevant test suite and report the pass/fail delta vs baseline in your summary — never claim a security fix is done without that delta
-- Never commit `docs/superpowers/` — these are local AI planning artifacts and are already in `.gitignore`
+- Never commit `.superpowers/` or `.claude/plans/` — these are local AI planning artifacts and are already in `.gitignore`
 - Prefer concise text: PR descriptions, commit messages, Slack drafts, and summaries should be scannable. Cut preambles, redundant framing, and paragraph-length explanations of what a bullet already says. Each bullet carries one fact. If a section needs context, one sentence is usually enough.
 
 ## Conditional Context (Read BEFORE working in these areas)
