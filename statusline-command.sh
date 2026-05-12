@@ -38,7 +38,6 @@ fi
 
 if [ -n "$branch" ] && [ -n "$port" ]; then
   proxy="8080"
-  mcp_running=$(lsof -ti:9000 2>/dev/null)
 
   pr_url=""
   if [ "$branch" != "main" ]; then
@@ -79,8 +78,6 @@ if [ -n "$branch" ] && [ -n "$port" ]; then
   # Local URL (clickable "Local" link)
   if [ "$port" = "3000" ]; then
     local_url="http://localhost:${port}/studio.html"
-  elif [ -n "$mcp_running" ]; then
-    local_url="http://localhost:${port}/studio.html?proxy.port=${proxy}&mcp.server=http://localhost:9000"
   else
     local_url="http://localhost:${port}/studio.html?proxy.port=${proxy}"
   fi
@@ -90,16 +87,6 @@ if [ -n "$branch" ] && [ -n "$port" ]; then
   branch_lower=$(echo "$branch" | tr '[:upper:]' '[:lower:]')
   remote_url="https://${branch_lower}--mas--adobecom.aem.live/studio.html"
   remote_link="\033]8;;${remote_url}\033\\\\${BLUE}Remote${RESET}\033]8;;\033\\\\"
-
-  # MCP status
-  mcp_tag=""
-  if [ "$port" != "3000" ]; then
-    if [ -n "$mcp_running" ]; then
-      mcp_tag="  ${GREEN}MCP${RESET}"
-    else
-      mcp_tag="  ${YELLOW}MCP:off${RESET}"
-    fi
-  fi
 
   # Branch label (clickable Jira link for non-main branches)
   if [ "$branch" = "main" ]; then
@@ -119,8 +106,8 @@ if [ -n "$branch" ] && [ -n "$port" ]; then
     fi
   fi
 
-  printf "%b%b ${DIM}→${RESET} %b  %b%b  %b  %b%b" \
-    "$branch_label" "$desc_tag" "$local_link" "$remote_link" "$mcp_tag" "$vscode_link" "$finder_link" "$pr_tag"
+  printf "%b%b ${DIM}→${RESET} %b  %b  %b  %b%b" \
+    "$branch_label" "$desc_tag" "$local_link" "$remote_link" "$vscode_link" "$finder_link" "$pr_tag"
 elif [ -n "$branch" ]; then
   printf "${CYAN}%s${RESET}" "$branch"
 fi
