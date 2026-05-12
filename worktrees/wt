@@ -297,25 +297,29 @@ cmd_new() {
         ln -s "$MAS_DIR/.env" "$dest/.env"
     fi
 
-    # Symlink .claude from main repo so Claude Code skills/agents/rules are available
-    if [[ ! -e "$dest/.claude" ]]; then
-        ln -s "$MAS_DIR/.claude" "$dest/.claude"
-    fi
+    # Force-symlink shared dotfiles from main repo. We rm any existing target
+    # first because `git worktree add` materializes anything tracked under
+    # those paths (e.g. .claude/commands/release-mas-js.md) as a real directory,
+    # which would otherwise shadow the symlink and hide project skills/agents/rules.
+    force_link() {
+        local target="$1"
+        local linkpath="$2"
+        [[ ! -e "$target" ]] && return
+        if [[ -L "$linkpath" ]]; then
+            local current
+            current="$(readlink "$linkpath")"
+            [[ "$current" == "$target" ]] && return
+            rm "$linkpath"
+        elif [[ -e "$linkpath" ]]; then
+            rm -rf "$linkpath"
+        fi
+        ln -s "$target" "$linkpath"
+    }
 
-    # Symlink CLAUDE.md from main repo (gitignored, not copied by worktree)
-    if [[ ! -e "$dest/CLAUDE.md" ]]; then
-        ln -s "$MAS_DIR/CLAUDE.md" "$dest/CLAUDE.md"
-    fi
-
-    # Symlink specs from main repo so speckit project specs are shared
-    if [[ -d "$MAS_DIR/specs" ]] && [[ ! -e "$dest/specs" ]]; then
-        ln -s "$MAS_DIR/specs" "$dest/specs"
-    fi
-
-    # Symlink .specify from main repo so constitution and memory are shared
-    if [[ -d "$MAS_DIR/.specify" ]] && [[ ! -e "$dest/.specify" ]]; then
-        ln -s "$MAS_DIR/.specify" "$dest/.specify"
-    fi
+    force_link "$MAS_DIR/.claude"   "$dest/.claude"
+    force_link "$MAS_DIR/CLAUDE.md" "$dest/CLAUDE.md"
+    force_link "$MAS_DIR/specs"     "$dest/specs"
+    force_link "$MAS_DIR/.specify"  "$dest/.specify"
 
     echo "$branch" > "$HOME/.claude/active-worktree"
 
