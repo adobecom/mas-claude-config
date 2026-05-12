@@ -30,13 +30,17 @@ if [[ -z "$branch" || "$branch" == "main" ]]; then
   branch="main"
   port="3000"
 elif [ -f "$PORTS_FILE" ]; then
-  offset=$(grep "^${branch}=" "$PORTS_FILE" | cut -d'=' -f2)
-  if [ -n "$offset" ]; then
+  offset=$(grep "^${branch}=" "$PORTS_FILE" | head -n 1 | cut -d'=' -f2)
+  if [[ "$offset" =~ ^[0-9]+$ ]]; then
     port=$((3000 + offset))
   fi
 fi
 
-if [ -n "$branch" ] && [ -n "$port" ]; then
+# Always render the full statusline once $branch is known. Local link is
+# the only element gated on $port; everything else (Remote, VS Code, Finder,
+# PR) renders unconditionally so we don't collapse to a bare branch label
+# when the port can't be resolved (e.g. .ports missing the branch yet).
+if [ -n "$branch" ]; then
   proxy="8080"
 
   pr_url=""
@@ -75,13 +79,17 @@ if [ -n "$branch" ] && [ -n "$port" ]; then
   fi
   finder_link="\033]8;;file://${finder_path}\033\\\\${MAGENTA}Finder${RESET}\033]8;;\033\\\\"
 
-  # Local URL (clickable "Local" link)
-  if [ "$port" = "3000" ]; then
-    local_url="http://localhost:${port}/studio.html"
-  else
-    local_url="http://localhost:${port}/studio.html?proxy.port=${proxy}"
+  # Local URL (clickable "Local" link). Skipped when we couldn't resolve
+  # a port — without one, we don't know which AEM instance to point at.
+  local_link=""
+  if [ -n "$port" ]; then
+    if [ "$port" = "3000" ]; then
+      local_url="http://localhost:${port}/studio.html"
+    else
+      local_url="http://localhost:${port}/studio.html?proxy.port=${proxy}"
+    fi
+    local_link="\033]8;;${local_url}\033\\\\${BLUE}Local${RESET}\033]8;;\033\\\\  "
   fi
-  local_link="\033]8;;${local_url}\033\\\\${BLUE}Local${RESET}\033]8;;\033\\\\"
 
   # Remote URL (clickable "Remote" link)
   branch_lower=$(echo "$branch" | tr '[:upper:]' '[:lower:]')
@@ -106,8 +114,6 @@ if [ -n "$branch" ] && [ -n "$port" ]; then
     fi
   fi
 
-  printf "%b%b ${DIM}→${RESET} %b  %b  %b  %b%b" \
+  printf "%b%b ${DIM}→${RESET} %b%b  %b  %b%b" \
     "$branch_label" "$desc_tag" "$local_link" "$remote_link" "$vscode_link" "$finder_link" "$pr_tag"
-elif [ -n "$branch" ]; then
-  printf "${CYAN}%s${RESET}" "$branch"
 fi
