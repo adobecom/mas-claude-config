@@ -862,47 +862,50 @@ phase_user_skills() {
     local skill_name
     skill_name=$(basename "$skill_dir")
     local dest="$user_skills_dest/$skill_name"
+    local action="Installed"
     if [ -d "$dest" ]; then
-      info "$skill_name already installed (skipped)"
-    else
-      mkdir -p "$dest"
-      cp -r "$skill_dir." "$dest/"
-      if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' \
-          -e "s|__MAS_DIR__|$MAS_DIR|g" \
-          -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
-          "$dest/SKILL.md" 2>/dev/null || true
-      else
-        sed -i \
-          -e "s|__MAS_DIR__|$MAS_DIR|g" \
-          -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
-          "$dest/SKILL.md" 2>/dev/null || true
-      fi
-      info "Installed skill: $skill_name"
+      rm -rf "$dest"
+      action="Updated"
     fi
-  done
-
-  # Statusline
-  local statusline_dest="$HOME/.claude/statusline-command.sh"
-  if [ -f "$statusline_dest" ]; then
-    info "statusline already installed (skipped)"
-  else
-    cp "$SCRIPT_DIR/statusline-command.sh" "$statusline_dest"
-    chmod +x "$statusline_dest"
+    mkdir -p "$dest"
+    cp -r "$skill_dir." "$dest/"
     if [[ "$OSTYPE" == "darwin"* ]]; then
       sed -i '' \
         -e "s|__MAS_DIR__|$MAS_DIR|g" \
         -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
-        "$statusline_dest"
+        "$dest/SKILL.md" 2>/dev/null || true
     else
       sed -i \
         -e "s|__MAS_DIR__|$MAS_DIR|g" \
         -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
-        "$statusline_dest"
+        "$dest/SKILL.md" 2>/dev/null || true
     fi
-    local settings_path="$HOME/.claude/settings.json"
-    if [ -f "$settings_path" ]; then
-      python3 - "$statusline_dest" "$settings_path" <<'PYEOF'
+    info "$action skill: $skill_name"
+  done
+
+  # Statusline
+  local statusline_dest="$HOME/.claude/statusline-command.sh"
+  local statusline_action="Installed"
+  if [ -f "$statusline_dest" ]; then
+    cp "$statusline_dest" "${statusline_dest}.bak.$(date +%Y%m%d-%H%M%S)" 2>/dev/null || true
+    statusline_action="Updated"
+  fi
+  cp "$SCRIPT_DIR/statusline-command.sh" "$statusline_dest"
+  chmod +x "$statusline_dest"
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' \
+      -e "s|__MAS_DIR__|$MAS_DIR|g" \
+      -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
+      "$statusline_dest"
+  else
+    sed -i \
+      -e "s|__MAS_DIR__|$MAS_DIR|g" \
+      -e "s|__ADOBE_DIR__|$ADOBE_DIR|g" \
+      "$statusline_dest"
+  fi
+  local settings_path="$HOME/.claude/settings.json"
+  if [ -f "$settings_path" ]; then
+    python3 - "$statusline_dest" "$settings_path" <<'PYEOF'
 import json, sys
 statusline_path = sys.argv[1]
 settings_path = sys.argv[2]
@@ -915,13 +918,12 @@ s["statusLine"] = {"type": "command", "command": f"bash {statusline_path}"}
 with open(settings_path, "w") as f:
     json.dump(s, f, indent=2)
 PYEOF
-      info "Statusline configured in ~/.claude/settings.json"
-    else
-      note "To enable statusline, add to ~/.claude/settings.json:"
-      note "  \"statusLine\": {\"type\": \"command\", \"command\": \"bash $statusline_dest\"}"
-    fi
-    info "Installed statusline"
+    info "Statusline configured in ~/.claude/settings.json"
+  else
+    note "To enable statusline, add to ~/.claude/settings.json:"
+    note "  \"statusLine\": {\"type\": \"command\", \"command\": \"bash $statusline_dest\"}"
   fi
+  info "$statusline_action statusline"
 }
 
 # ─── Phase: Secret-leak prevention hooks ─────────────────────────────────────

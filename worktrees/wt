@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # MAS worktree manager
 # Usage:
-#   wt new  <branch-or-pr-url> [env]   – create + install + fix git
+#   wt new  <branch-or-pr-url> [env] [--no-start]
+#                                      – create + install + fix git, then auto-start
+#                                        (use --no-start to skip the auto-start)
 #   wt start <branch> [env]            – start AEM + proxy
 #   wt stop  <branch>                  – stop servers
 #   wt list                            – show all worktrees + status
@@ -12,6 +14,8 @@
 #                                        from main repo into worktree
 #                                        (one-shot repair for older worktrees missing
 #                                         skills/agents/commands/rules/hooks)
+#   wt sync-all                        – run sync-claude on every worktree under
+#                                        ~/Web/adobe/worktrees (idempotent)
 
 set -e
 
@@ -257,8 +261,20 @@ branch_from_arg() {
 # ── commands ─────────────────────────────────────────────────────────────────
 
 cmd_new() {
+    # Parse args: positional branch + optional env, plus --no-start anywhere
+    local auto_start=1
+    local positional=()
+    for arg in "$@"; do
+        case "$arg" in
+            --no-start) auto_start=0 ;;
+            *)          positional+=("$arg") ;;
+        esac
+    done
+    set -- "${positional[@]}"
+
     local branch
-    branch=$(branch_from_arg "${1:?Usage: wt new <branch-or-pr-url>}")
+    branch=$(branch_from_arg "${1:?Usage: wt new <branch-or-pr-url> [env] [--no-start]}")
+    local env="${2:-prod}"
     local dest="$WORKTREES_DIR/$branch"
 
     echo "→ branch: $branch"
@@ -328,7 +344,15 @@ cmd_new() {
     echo "  AEM:   http://localhost:$((AEM_BASE + offset))"
     echo "  Proxy: http://localhost:$PROXY_BASE (shared)"
     echo ""
-    echo "  wt start $branch"
+
+    if [[ "$auto_start" -eq 1 ]]; then
+        if ! cmd_start "$branch" "$env"; then
+            echo "⚠ auto-start failed; run 'wt start $branch' to retry" >&2
+            return 0
+        fi
+    else
+        echo "  wt start $branch"
+    fi
 }
 
 cmd_start() {
@@ -662,6 +686,27 @@ cmd_sync_claude() {
     relink "$MAS_DIR/.specify"  "$dest/.specify"
 }
 
+cmd_sync_all() {
+    local count=0 changed=0
+    for wt_dir in "$WORKTREES_DIR"/*/; do
+        [[ -d "$wt_dir" ]] || continue
+        local branch
+        branch="$(basename "$wt_dir")"
+        # Skip non-worktree dirs (no .git file/dir means git doesn't know it)
+        [[ -e "$wt_dir/.git" ]] || continue
+        echo "── $branch ──"
+        local before_link
+        before_link="$(readlink "$wt_dir/.claude" 2>/dev/null || echo '')"
+        cmd_sync_claude "$branch"
+        local after_link
+        after_link="$(readlink "$wt_dir/.claude" 2>/dev/null || echo '')"
+        [[ "$before_link" != "$after_link" ]] && changed=$((changed + 1))
+        count=$((count + 1))
+    done
+    echo ""
+    echo "✓ scanned $count worktree(s); $changed repaired"
+}
+
 # ── dispatch ──────────────────────────────────────────────────────────────────
 
 CMD="${1:-list}"
@@ -677,5 +722,6 @@ case "$CMD" in
     mcp)          cmd_mcp "$@" ;;
     focus)        cmd_focus "$@" ;;
     sync-claude)  cmd_sync_claude "$@" ;;
-    *)            echo "Usage: wt <new|start|stop|list|auth|test|mcp|focus|sync-claude> [args]"; exit 1 ;;
+    sync-all)     cmd_sync_all ;;
+    *)            echo "Usage: wt <new|start|stop|list|auth|test|mcp|focus|sync-claude|sync-all> [args]"; exit 1 ;;
 esac
