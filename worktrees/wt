@@ -110,7 +110,7 @@ activate_node() {
 
 ports_read() {
     local branch="$1"
-    grep "^$branch=" "$PORTS_FILE" 2>/dev/null | cut -d= -f2
+    grep "^$branch=" "$PORTS_FILE" 2>/dev/null | head -n 1 | cut -d= -f2
 }
 
 ports_write() {
@@ -123,6 +123,7 @@ ports_write() {
 ports_next() {
     local max=0  # offset 0 is reserved for main repo
     while IFS='=' read -r _ offset; do
+        [[ "$offset" =~ ^[0-9]+$ ]] || continue
         [[ "$offset" -gt "$max" ]] && max="$offset"
     done < <(cat "$PORTS_FILE" 2>/dev/null)
     echo $((max + 1))
@@ -366,6 +367,13 @@ cmd_start() {
     local offset
     offset=$(ports_read "$branch")
     [[ -z "$offset" ]] && offset=0
+    # Defensive: ports_read should already return a single value, but if .ports
+    # has duplicates or garbage, force the first integer to avoid the arithmetic
+    # parser choking on multi-line input.
+    if ! [[ "$offset" =~ ^[0-9]+$ ]]; then
+        echo "⚠ invalid offset for $branch in $PORTS_FILE (got: ${offset//$'\n'/\\n}); defaulting to 0" >&2
+        offset=0
+    fi
 
     activate_node "$dest"
 
