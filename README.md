@@ -119,6 +119,8 @@ claude mcp remove corp-jira     # if a stale entry exists
 - **Purpose:** Search Adobe internal Slack, wiki, Jira, AEM docs, pipelines, and tenants
 - **Used by:** `/start-ticket` context gathering, AEM/Adobe questions
 - **Setup:** Requires the `fj` CLI (Adobe internal — get it from `go/fluffyjaws` or a teammate). The wizard runs `fj login` if not authenticated.
+- **Wiring:** Uses the dedicated `fj-mcp` shim with `--api https://api.fluffyjaws.adobe.com` and `FJ_API_HOST` set in the env. The bare `fluffyjaws.adobe.com` host is now Banyan/VPN-gated for CLI traffic — the API host is the supported entry point. If `fj-mcp` isn't on your PATH the wizard falls back to the legacy `fj mcp` invocation and warns you to upgrade `fj`.
+- **Docs:** Authoritative MCP tool reference at https://fluffyjaws.adobe.com/docs/mcp
 
 > **GitHub:** Use `gh pr create`, `gh pr edit`, `gh api`, etc. directly. The wizard checks that `gh` is installed and authed; instructs `gh auth login` if not.
 
@@ -195,6 +197,7 @@ When `./install.sh` finishes, it surfaces drift from previous wizard versions:
 - **Old Jira MCP clone** at `adobe/remote-corp-jira-mcp/` — the Jira MCP moved to `Adobe-AIFoundations/adobe-mcp-servers`. The wizard prints a warning and suggests `rm -rf` to clean up the old clone. Your Jira PAT is preserved in `~/.claude/mcp.json` — only the entry-point path is updated.
 - **Stale `mas` MCP entry** in `~/.claude/mcp.json` pointing to a now-missing `mas-mcp-server/` path — the wizard prints a warning and suggests `claude mcp remove mas`. (The MAS MCP was removed from the wizard pending `mas-mcp-server` landing on `origin/main`.)
 - **GitHub MCP** — if you had it from a previous version, it's left untouched. The wizard no longer prompts for it. Remove it manually with `claude mcp remove github` if you want.
+- **Legacy FluffyJaws wiring** — older configs used `command: "fj", args: ["mcp"]` against the bare `fluffyjaws.adobe.com` host. The current contract is `fj-mcp --api https://api.fluffyjaws.adobe.com` (the bare host is now VPN/Banyan-gated for CLI traffic). The wizard detects the legacy wiring and prompts you to re-run `./install.sh --mcp-only`.
 
 All migration notes are advisory — the wizard never auto-deletes anything from your machine.
 

@@ -8,9 +8,10 @@
 #   wt auth [branch]                   – patch auth session for worktree port
 #   wt test [branch] [playwright args] – run nala tests for a worktree
 #   wt mcp [start|stop|status] [port]  – manage local MCP HTTP server
-#   wt sync-claude <branch>            – symlink .claude/hooks to mas/.claude/hooks
-#                                        (one-shot fix for older worktrees missing
-#                                         auto-format hooks)
+#   wt sync-claude <branch>            – symlink .claude, CLAUDE.md, specs, .specify
+#                                        from main repo into worktree
+#                                        (one-shot repair for older worktrees missing
+#                                         skills/agents/commands/rules/hooks)
 
 set -e
 
@@ -629,17 +630,32 @@ cmd_sync_claude() {
         echo "✗ worktree $dest not found" >&2
         exit 1
     fi
-    local hooks="$dest/.claude/hooks"
-    if [[ -L "$hooks" ]]; then
-        echo "✓ $branch already linked to canonical hooks"
-        return
-    fi
-    if [[ -d "$hooks" ]]; then
-        rm -rf "$hooks"
-    fi
-    mkdir -p "$dest/.claude"
-    ln -s "$MAS_DIR/.claude/hooks" "$hooks"
-    echo "→ linked $hooks → $MAS_DIR/.claude/hooks"
+
+    relink() {
+        local target="$1"
+        local linkpath="$2"
+        if [[ ! -e "$target" ]]; then
+            return
+        fi
+        if [[ -L "$linkpath" ]]; then
+            local current
+            current="$(readlink "$linkpath")"
+            if [[ "$current" == "$target" ]]; then
+                echo "✓ $linkpath already linked"
+                return
+            fi
+            rm "$linkpath"
+        elif [[ -e "$linkpath" ]]; then
+            rm -rf "$linkpath"
+        fi
+        ln -s "$target" "$linkpath"
+        echo "→ linked $linkpath → $target"
+    }
+
+    relink "$MAS_DIR/.claude"   "$dest/.claude"
+    relink "$MAS_DIR/CLAUDE.md" "$dest/CLAUDE.md"
+    relink "$MAS_DIR/specs"     "$dest/specs"
+    relink "$MAS_DIR/.specify"  "$dest/.specify"
 }
 
 # ── dispatch ──────────────────────────────────────────────────────────────────

@@ -717,6 +717,17 @@ phase_mcp() {
       warn "fj CLI found but not authenticated"
     fi
 
+    local fj_mcp_cmd="fj"
+    local fj_mcp_args="[\"mcp\"]"
+    if command -v fj-mcp &>/dev/null; then
+      fj_mcp_cmd="fj-mcp"
+      fj_mcp_args="[\"--api\", \"https://api.fluffyjaws.adobe.com\"]"
+      info "fj-mcp shim found — using current MCP invocation pattern"
+    else
+      warn "fj-mcp shim not found — falling back to legacy 'fj mcp' wiring"
+      note "  Upgrade fj to get the dedicated fj-mcp binary"
+    fi
+
     local setup_fj
     setup_fj=$(prompt_yn "Configure FluffyJaws MCP?" "y")
     if [ "$setup_fj" = "y" ]; then
@@ -725,9 +736,9 @@ phase_mcp() {
         fj login
       fi
       add_mcp_server "fluffyjaws" "{
-        \"command\": \"fj\",
-        \"args\": [\"mcp\"],
-        \"env\": {}
+        \"command\": \"$fj_mcp_cmd\",
+        \"args\": $fj_mcp_args,
+        \"env\": {\"FJ_API_HOST\": \"https://api.fluffyjaws.adobe.com\"}
       }"
       enable_mcp_in_settings "fluffyjaws"
       info "FluffyJaws MCP configured"
@@ -736,8 +747,7 @@ phase_mcp() {
   else
     warn "fj CLI not found — FluffyJaws is an Adobe internal tool"
     note "  Install it from: go/fluffyjaws or ask a teammate for the installer"
-    note "  Once installed, run: fj login && fj mcp"
-    note "  Then re-run: ./install.sh --mcp-only"
+    note "  Once installed, run: fj login (then re-run ./install.sh --mcp-only)"
   fi
 
   echo ""
@@ -783,6 +793,44 @@ PYEOF
       note "The 'mas' MCP was removed from this wizard (source isn't on origin/main yet)."
       note "Clean up the orphan entry with:"
       note "  claude mcp remove mas"
+    fi
+  fi
+
+  # Stale FluffyJaws wiring: previous wizard versions used `fj mcp` against the
+  # default host. Current contract is `fj-mcp --api https://api.fluffyjaws.adobe.com`
+  # (fj API moved to api.fluffyjaws.adobe.com; the bare host is now Banyan/VPN-gated).
+  if [ -f "$MCP_JSON_PATH" ]; then
+    local legacy_fj
+    legacy_fj=$(python3 - <<'PYEOF'
+import json, os, sys
+mcp_path = os.path.expanduser("~/.claude/mcp.json")
+try:
+    cfg = json.loads(open(mcp_path).read())
+except Exception:
+    sys.exit(0)
+fj = cfg.get("mcpServers", {}).get("fluffyjaws") or cfg.get("servers", {}).get("fluffyjaws")
+if not fj:
+    sys.exit(0)
+cmd = fj.get("command", "")
+args = fj.get("args") or []
+env = fj.get("env") or {}
+if cmd == "fj" and "mcp" in args:
+    print("legacy")
+elif cmd == "fj-mcp" and not env.get("FJ_API_HOST") and not any("api.fluffyjaws.adobe.com" in str(a) for a in args):
+    print("missing-host")
+PYEOF
+    )
+    if [ "$legacy_fj" = "legacy" ]; then
+      echo ""
+      warn "FluffyJaws MCP wired with legacy 'fj mcp' invocation"
+      note "Current pattern uses the dedicated fj-mcp shim with explicit API host."
+      note "Re-run to update:"
+      note "  ./install.sh --mcp-only"
+    elif [ "$legacy_fj" = "missing-host" ]; then
+      echo ""
+      warn "FluffyJaws MCP missing FJ_API_HOST/--api — may break when bare host is VPN-gated"
+      note "Re-run to apply the current wiring:"
+      note "  ./install.sh --mcp-only"
     fi
   fi
 }
