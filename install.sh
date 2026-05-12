@@ -431,7 +431,6 @@ phase_plugins() {
     "commit-commands@claude-plugins-official:yes:Standardized commit and PR workflows"
     "github@claude-plugins-official:yes:GitHub PR/issue skills and workflows"
     "figma@claude-plugins-official:no:Convert Figma designs to code (needs Figma access)"
-    "claude-mem@thedotmack:no:Persistent cross-session memory (advanced)"
     "explanatory-output-style@claude-plugins-official:no:Educational insights while coding (verbose)"
   )
 
