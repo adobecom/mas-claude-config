@@ -201,22 +201,22 @@ txt = open(sys.argv[1]).read()
 
 # Pattern A: simple ternary with access_token check
 txt = txt.replace(
-    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''access_token'\'')\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
-    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+    "redirect_uri: (location.port && location.port !== '\''3000'\'' && !location.hash.includes('\''access_token'\'')\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\''3000'\''\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
 )
 txt = txt.replace(
-    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''access_token'\'')\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
-    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+    "redirect_uri: (location.port && location.port !== '\''3000'\'' && !location.hash.includes('\''access_token'\'')\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\''3000'\''\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
 )
 
 # Pattern B: ternary with both id_token and access_token checks
 txt = txt.replace(
-    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\'')\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
-    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+    "redirect_uri: (location.port && location.port !== '\''3000'\'' && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\'')\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\''3000'\''\n                    ? `http://localhost:3000/studio.html?relayPort=${location.port}`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
 )
 txt = txt.replace(
-    "redirect_uri: (location.port && location.port !== '\'3000'\'' && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\'')\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
-    "redirect_uri: (location.port && location.port !== '\'3000'\''\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
+    "redirect_uri: (location.port && location.port !== '\''3000'\'' && !location.hash.includes('\''id_token'\'') && !location.hash.includes('\''access_token'\'')\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),",
+    "redirect_uri: (location.port && location.port !== '\''3000'\''\n                    ? \\`http://localhost:3000/studio.html?relayPort=${location.port}\\`\n                    : location.href.substring(0, location.href.length - location.hash.length)),"
 )
 
 # Pattern C: IIFE variant with localRelayPort
@@ -229,7 +229,7 @@ txt = txt.replace(
     "if (location.port && location.port !== \\`${localRelayPort}\\`)"
 )
 
-open(sys.argv[1], '\'w\'').write(txt)
+open(sys.argv[1], '\''w'\'').write(txt)
 ' "$html"
 }
 
