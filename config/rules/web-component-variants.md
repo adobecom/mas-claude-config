@@ -361,5 +361,4 @@ npm run build  # Runs tests AND compiles
 ## Related Skills
 
 - `card-variant-registry` - Variant schemas and slots
-- `lit-component-scaffolder` - Generate new components
-- `figma-to-code` - Convert Figma designs to variants
+- `figma-to-merch-card` - Convert Figma designs to variants

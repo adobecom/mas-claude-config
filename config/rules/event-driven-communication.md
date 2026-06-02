@@ -228,8 +228,3 @@ class MasTextField extends LitElement {
     @change="${this.handleChange}">
 </mas-text-field>
 ```
-
-## Related Skills
-
-- `merch-card-editor-debugger` - Debug editor event flow
-- `preview-fragment-debugger` - Debug store/event interactions

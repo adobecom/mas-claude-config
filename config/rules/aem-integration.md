@@ -174,8 +174,3 @@ Fragments pass through transformers in `io/`:
 5. Return enriched context
 
 ## Related Skills
-
-- `aem-api-network-debugger` - Debug AEM API calls
-- `fragment-operation-debugger` - Debug CRUD operations
-- `fragment-pipeline-debugger` - Debug I/O Runtime pipeline
-- `mas-aem-integration` - Work with AEM fragment operations

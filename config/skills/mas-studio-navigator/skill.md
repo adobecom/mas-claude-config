@@ -230,9 +230,6 @@ await mcp__chrome-devtools__performance_start_trace({
 
 Works with:
 - **nala-runner**: Uses same selectors for test automation
-- **studio-fragment-debugger**: Deep fragment debugging
-- **mas-mcp-tester**: Validate MCP operations
-- **mas-aem-integration**: Fragment CRUD operations
 
 ## Best Practices
 

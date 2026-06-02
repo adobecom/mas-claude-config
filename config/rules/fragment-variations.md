@@ -87,9 +87,3 @@ fieldsObject[field.name] = field.multiple
     ? (field.values ?? [])
     : (field.values?.[0] ?? '');
 ```
-
-## Related Skills
-
-- `fragment-variation-tester` - Test and validate fragment variations
-- `field-inheritance-analyzer` - Deep analysis of field inheritance
-- `fragment-operation-debugger` - Debug fragment CRUD operations

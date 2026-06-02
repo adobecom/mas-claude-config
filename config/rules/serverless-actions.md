@@ -271,9 +271,3 @@ return {
     body: brotliCompressed,
 };
 ```
-
-## Related Skills
-
-- `io-runtime-master` - Expert I/O Runtime knowledge
-- `fragment-pipeline-debugger` - Debug pipeline transformers
-- `ost-products-debugger` - Debug OST product caching

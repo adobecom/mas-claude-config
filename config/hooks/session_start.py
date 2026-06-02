@@ -138,6 +138,21 @@ def load_development_context(source):
     if mcp_warning:
         context_parts.append(mcp_warning)
 
+    # Pending auto-distilled memory drafts
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from utils import distill
+        pending = distill.count_pending()
+        if pending > 0:
+            memory_dir = distill._memory_dir()
+            location = str(memory_dir / "_pending") if memory_dir else "_pending/"
+            context_parts.append(
+                f"\n📥 {pending} pending memory draft(s) from prior sessions — review at: {location}\n"
+                f"   (each draft is a detected learnable moment; accept by moving to parent memory/, or delete)"
+            )
+    except Exception:
+        pass
+
     # Add recent issues if available
     issues = get_recent_issues()
     if issues:

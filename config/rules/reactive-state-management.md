@@ -209,9 +209,3 @@ numberStore.set(5); // No notification
 objectStore.set({ a: 1 });
 objectStore.set({ a: 1 }); // Still notifies
 ```
-
-## Related Skills
-
-- `preview-fragment-debugger` - Debug preview store issues
-- `fragment-operation-debugger` - Debug fragment CRUD
-- `field-inheritance-analyzer` - Understand field inheritance

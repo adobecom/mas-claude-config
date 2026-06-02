@@ -137,7 +137,4 @@ npm run build  # Runs tests AND compiles Lit components
 
 ## Related Skills
 
-- `mas-coding-conventions` - Enforce coding conventions
-- `component-import-checker` - Verify Spectrum imports
-- `lit-component-scaffolder` - Generate new components
 - `dead-code-cleanup` - Auto-detect unused code

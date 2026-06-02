@@ -26,6 +26,24 @@
 - `/challenge` → architectural stress-test *before* building (adversary/architect/simplifier agents)
 - `/review-pr` → convention + quality check *after* building
 
+## Investigation Discipline
+
+When debugging, do NOT conclude root cause until verified end-to-end (logs, repro, code path traced). State confidence as **low / medium / high** before any fix.
+
+- First hypothesis fails → revert assumptions and re-examine. Do not layer fixes on top of unverified guesses.
+- Distinguish parent vs variation, default vs regional locale, and similar slip-prone distinctions BEFORE proposing fixes.
+- Before writing code for a bug fix, state: (1) hypothesis, (2) evidence (file:line, log, repro), (3) confidence, (4) what would falsify it. Only edit after the user confirms — unless the bug is trivial (typo, obvious off-by-one).
+
+## Response Length
+
+- Keep turns concise. Aim for under ~500 output tokens unless the user asks for a long-form deliverable.
+- For audits, plans, or long write-ups, write to a file (`.claude/plans/` or similar) and link to it — don't render inline.
+
+## Task Flow
+
+- Given a ticket ID or clear task, proceed directly. Do NOT pause to ask about duplicates, related tickets, or scope clarifications unless something is genuinely ambiguous.
+- Prefer doing the requested work first, then surfacing observations after.
+
 ## Essential Rules (Always Active)
 
 - Branch name = Jira ticket number (e.g., `MWPW-183848`)
@@ -53,3 +71,8 @@
 - If planning, creating PRs, or reviewing code → read `.claude/rules/mental-models.md`
 - For full coding principles with examples → `.specify/memory/constitution.md`
 
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

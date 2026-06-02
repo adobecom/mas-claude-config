@@ -13,8 +13,7 @@ paths:
 Use these skills for NALA-related work:
 
 - For running/fixing tests → use `nala-runner` skill (`/nala local @tag`, `/nala fix @tag`)
-- For creating/modifying tests → use `nala-writer` skill (`/nala write <description>`)
-- For generating page objects → use `nala-page-object-generator` skill
+- For creating/modifying tests → use `nala-writer` skill (`/nala write <description>`) — includes page-object templates
 
 ## Key Rule
 
@@ -243,5 +242,4 @@ Tests should use fragments created specifically for nala, in `fr_FR` locale. Usi
 ## Related Skills
 
 - `nala-runner` - Run, debug, and fix NALA tests (`/nala local @tag`, `/nala fix @tag`)
-- `nala-writer` - Write and modify NALA tests (`/nala write <description>`)
-- `nala-page-object-generator` - Generate page objects and spec scaffolding
+- `nala-writer` - Write and modify NALA tests (`/nala write <description>`) — includes page-object templates

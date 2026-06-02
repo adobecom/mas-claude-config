@@ -15,8 +15,8 @@ Usage:
 
 Default scan paths:
     ~/.claude/  (excluding logs, state, cache, projects, todos)
-    /Users/axelcurenobasurto/Web/adobe/mas/.claude/
-    /Users/axelcurenobasurto/Web/adobe/mas-claude-config/
+    __MAS_DIR__/.claude/
+    __MAS_DIR__-claude-config/
 
 Exit codes:
     0 - clean
@@ -38,8 +38,8 @@ HOME = Path.home()
 
 DEFAULT_TARGETS = [
     HOME / ".claude",
-    Path("/Users/axelcurenobasurto/Web/adobe/mas/.claude"),
-    Path("/Users/axelcurenobasurto/Web/adobe/mas-claude-config"),
+    Path("__MAS_DIR__/.claude"),
+    Path("__MAS_DIR__-claude-config"),
 ]
 
 # Subdirectories to skip even when scanning a default root.
