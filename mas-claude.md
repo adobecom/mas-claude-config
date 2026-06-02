@@ -18,13 +18,13 @@
 | `plan-only` | brainstorming → writing-plans |
 | `plan-build` | plan-only + subagent-driven-development |
 | `plan-build-test` | plan-build + nala/mas-test |
-| `full` | plan-build-test + review-pr + mas-pr-creator |
+| `full` | plan-build-test + mas-pr-review + mas-pr-creator |
 
 **PR creation override:** When `finishing-a-development-branch` reaches Option 2 (Push and Create PR), skip its generic `gh pr create` and invoke `mas-pr-creator` instead — it uses the correct MAS template (Jira URL, Before/After test URLs, screenshots checklist).
 
-**When to use `/challenge` vs `/review-pr`:**
+**When to use `/challenge` vs `mas-pr-review`:**
 - `/challenge` → architectural stress-test *before* building (adversary/architect/simplifier agents)
-- `/review-pr` → convention + quality check *after* building
+- `mas-pr-review` → convention + quality check *after* building
 
 ## Investigation Discipline
 

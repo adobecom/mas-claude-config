@@ -26,8 +26,7 @@ The fragment pipeline is the core service, processing multiple steps to deliver 
 
 Key files:
 - `src/fragment/pipeline.js` - Main orchestration (PIPELINE array defines transformation order)
-- `src/fragment/common.js` - Shared utilities (logging, timing, state management)
-- `src/fragment-client.js` - Browser-compatible build of the pipeline
+- `src/fragment/utils/common.js` - Shared utilities (logging, timing, state management)
 - `src/health-check/index.js` - Service health monitoring
 
 The pipeline uses a context object passed through each transformer, accumulating data and timing metrics.
@@ -72,14 +71,6 @@ npm run test:watch          # Watch mode
 ```bash
 npm run lint                # Check for errors
 npm run lint:fix            # Auto-fix issues
-```
-
-### Building
-
-```bash
-# www/ only
-npm run build:client        # Build fragment-client.js for browser
-                           # Output: ../../studio/libs/fragment-client.js
 ```
 
 ### Local Development
@@ -164,7 +155,6 @@ OST product write is triggered daily via `.github/workflows/ost-products.yaml`
 ## Key Files
 
 - `app.config.yaml` - Action definitions and I/O Runtime configuration
-- `rollup.config.cjs` (www only) - Builds browser-compatible fragment-client
 - `utils.js` (studio only) - Shared utility functions
 
 ## Notes
