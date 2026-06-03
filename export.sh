@@ -279,7 +279,7 @@ if [ -f "$README_FILE" ]; then
     stated=$(grep -iE "^\| *$label *\|" "$README_FILE" 2>/dev/null | grep -oE '[0-9]+' | head -1)
     if [ -n "$stated" ] && [ "$stated" != "$actual" ]; then
       [ "$drift_warned" = false ] && { warn "README count drift (update the table in $README_FILE):"; drift_warned=true; }
-      note "  $label: README says $stated, actual is $actual"
+      echo "      $label: README says $stated, actual is $actual"
     fi
   }
   check_readme_count "Coding rules" "$RULE_COUNT"
