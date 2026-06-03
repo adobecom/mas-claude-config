@@ -750,6 +750,42 @@ phase_mcp() {
     note "  Once installed, run: fj login (then re-run ./install.sh --mcp-only)"
   fi
 
+  # ── Scout (semantic code search over the MAS repo) ─────────────────────────
+  if command -v scout >/dev/null 2>&1; then
+    local setup_scout
+    setup_scout=$(prompt_yn "Configure Scout MCP (semantic code search)?" "y")
+    if [ "$setup_scout" = "y" ]; then
+      add_mcp_server "scout" "{
+        \"command\": \"scout\",
+        \"args\": [\"mcp\"]
+      }"
+      enable_mcp_in_settings "scout"
+      info "Scout MCP configured"
+      ((mcps_configured++))
+    fi
+  else
+    warn "scout CLI not found — Scout indexes the MAS repo for semantic code search"
+    note "  Install it, then re-run: ./install.sh --mcp-only"
+  fi
+
+  # ── Odin (AEM headless — content fragments) ────────────────────────────────
+  # http transport, OAuth in-client (no token stored in config). One entry per
+  # environment; prod is the common case, the rest are opt-in.
+  local setup_odin
+  setup_odin=$(prompt_yn "Configure Odin AEM MCP servers (content fragments)?" "y")
+  if [ "$setup_odin" = "y" ]; then
+    local odin_env
+    for odin_env in dev qa stage prod; do
+      add_mcp_server "odin-$odin_env" "{
+        \"type\": \"http\",
+        \"url\": \"https://mcp.adobeaemcloud.com/adobe/mcp/odin/$odin_env\"
+      }"
+      enable_mcp_in_settings "odin-$odin_env"
+      ((mcps_configured++))
+    done
+    info "Odin MCP servers configured (dev/qa/stage/prod) — auth on first use via browser"
+  fi
+
   echo ""
   info "$mcps_configured MCP server(s) configured"
 

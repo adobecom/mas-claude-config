@@ -29,7 +29,7 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 | Secret-leak hooks | Block writes containing PATs, AWS keys, PEM keys, etc. (override marker: `<!-- secret-ok: reason -->`) |
 | `/scan-secrets` command | One-shot audit for existing credentials on disk |
 | `claude-mas` shell helper | `claude-mas MWPW-XXX` opens Claude Code in that worktree (auto-creates if missing); `mas` cds to main repo |
-| MCP servers | 3: corp-jira, adobe-wiki, fluffyjaws (see [MCP Servers](#mcp-servers) below) |
+| MCP servers | corp-jira, adobe-wiki, fluffyjaws, scout, odin (dev/qa/stage/prod) (see [MCP Servers](#mcp-servers) below) |
 
 **Plus**: a `wt` worktree manager script in `adobe/worktrees/` for running multiple MAS branches simultaneously on different ports.
 
@@ -70,7 +70,7 @@ The wizard will:
 
 ## MCP Servers
 
-The wizard sets up three MCP servers. GitHub is intentionally **not** an MCP — we use the `gh` CLI directly (one less PAT to manage, no `npm install -g`).
+The wizard sets up these MCP servers. GitHub is intentionally **not** an MCP — we use the `gh` CLI directly (one less PAT to manage, no `npm install -g`).
 
 ### corp-jira
 - **Purpose:** Read/create/update Jira tickets from Claude
@@ -122,7 +122,19 @@ claude mcp remove corp-jira     # if a stale entry exists
 - **Wiring:** Uses the dedicated `fj-mcp` shim with `--api https://api.fluffyjaws.adobe.com` and `FJ_API_HOST` set in the env. The bare `fluffyjaws.adobe.com` host is now Banyan/VPN-gated for CLI traffic — the API host is the supported entry point. If `fj-mcp` isn't on your PATH the wizard falls back to the legacy `fj mcp` invocation and warns you to upgrade `fj`.
 - **Docs:** Authoritative MCP tool reference at https://fluffyjaws.adobe.com/docs/mcp
 
+### Scout
+- **Purpose:** Semantic code search over the MAS repo (`keyword_search`, `regex_search`, `go_to_definition`, `explain_symbol`) — replaces ad-hoc `grep`/`find` for code investigation.
+- **Used by:** code review, debugging, any "where is X defined / what mentions X" lookup.
+- **Setup:** Requires the `scout` CLI on your PATH. The wizard configures the MCP entry (`scout mcp`) when the binary is present, and skips with an install hint otherwise. No token — it indexes the local checkout.
+
+### Odin (AEM headless)
+- **Purpose:** Read/search/CRUD AEM content fragments, models, and folders — the source of truth for MAS card data.
+- **Used by:** fragment/locale debugging, the `debug-cross-project-locale` and `debug-merch-card-rendering` skills.
+- **Setup:** `http` transport against `mcp.adobeaemcloud.com/adobe/mcp/odin/<env>`; auth happens in-client on first use (browser OAuth) — **no token is stored in config**. The wizard adds all four envs (`odin-dev`, `odin-qa`, `odin-stage`, `odin-prod`); prod is the common case for CRUD, the rest are opt-in for testing.
+
 > **GitHub:** Use `gh pr create`, `gh pr edit`, `gh api`, etc. directly. The wizard checks that `gh` is installed and authed; instructs `gh auth login` if not.
+
+> **context7:** Spectrum/Lit docs lookup. Shipped as a plugin (allowlisted in `settings.json`) — no separate MCP wizard step; the token stays per-user.
 
 > **MAS content fragments:** The `mas-mcp-server` source isn't on `origin/main` yet (lives on the unmerged MWPW-183572 branch). When it lands on main, this section will return.
 
@@ -140,6 +152,16 @@ mas                      # cd into main mas repo
 ```
 
 After `./install.sh` finishes, `source ~/.zshrc` (or restart your shell) once to start using them.
+
+## CLI Tooling (optional)
+
+### RTK (Rust Token Killer)
+
+A CLI proxy that filters verbose command output to cut token usage (60–90% on common dev operations like `git status`, `git diff`, `gh` calls). **Not an MCP and not installed by the wizard** — it's a separate, optional, per-user tool wired through a Claude Code Bash hook that transparently rewrites commands (`git status` → `rtk git status`, zero token overhead).
+
+- **Meta commands:** `rtk gain` (savings analytics), `rtk discover` (find missed opportunities), `rtk proxy <cmd>` (run raw, unfiltered — useful when a filter mangles output, e.g. `rtk proxy gh pr diff`).
+- **Install + verify:** `rtk --version`, then `rtk gain` should work. Name-collision caveat: a different `rtk` (Rust Type Kit) exists — if `rtk gain` errors, you have the wrong binary.
+- **Why optional:** it's a personal token-optimization choice, not required for any MAS skill or workflow. Skip it and everything still works.
 
 ## Secret-Leak Prevention
 
