@@ -329,6 +329,13 @@ red_flags:
     typical_comment: "Moving it to common/ without generalizing it is the worst of both worlds"
     reviewer: "yesil"
 
+  - pattern: "view_logic_in_shared_repository"
+    severity: "change_requested"
+    trigger: "View-specific method (promotions/fragments/translation domain logic, incl. thin pass-throughs) added to mas-repository.js / common/repository instead of the view's own model"
+    example_pr: 917
+    typical_comment: "mas-repository bloating is anti pattern: please move promotions related changes to a dedicated promotions model — see CONTRIBUTING.md Studio module table"
+    reviewer: "npeltier"
+
   - pattern: "aio_config_schema_violation"
     severity: "blocking"
     trigger: "Non-string/boolean/object literal in app.config.yaml params (breaks aio app deploy)"

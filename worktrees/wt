@@ -6,6 +6,8 @@
 #                                        (use --no-start to skip the auto-start)
 #   wt start <branch> [env]            – start AEM + proxy
 #   wt stop  <branch>                  – stop servers
+#   wt rm    <branch> [--force]        – stop, detach from Scout, remove worktree,
+#                                        and free port offset (branch ref preserved)
 #   wt list                            – show all worktrees + status
 #   wt auth [branch]                   – patch auth session for worktree port
 #   wt test [branch] [playwright args] – run nala tests for a worktree
@@ -14,8 +16,29 @@
 #                                        from main repo into worktree
 #                                        (one-shot repair for older worktrees missing
 #                                         skills/agents/commands/rules/hooks)
+#   wt repair [branch]                 – re-link .claude / CLAUDE.md / specs / .specify
+#                                        for the current or given worktree. Safe to run
+#                                        anytime. Auto-detects branch from cwd when
+#                                        omitted.
 #   wt sync-all                        – run sync-claude on every worktree under
 #                                        ~/Web/adobe/worktrees (idempotent)
+#
+# The .claude symlink is destroyed by every `git checkout` / `git merge` /
+# `git pull` that touches the working tree, because .claude/commands/release-mas-js.md
+# is a tracked file (git refuses to write through symlinks). To repair
+# automatically, add to your ~/.zshrc or ~/.bashrc:
+#
+#   git() {
+#       command git "$@"
+#       local exit=$?
+#       case "${1:-}" in
+#           checkout|merge|pull|fetch|rebase|reset|stash)
+#               if [[ "$PWD" == */worktrees/* ]]; then
+#                   bash "$HOME/Web/adobe/worktrees/wt" repair >/dev/null 2>&1 || true
+#               fi ;;
+#       esac
+#       return $exit
+#   }
 
 set -e
 
@@ -118,6 +141,12 @@ ports_write() {
     touch "$PORTS_FILE"
     grep -v "^$branch=" "$PORTS_FILE" > "$PORTS_FILE.tmp" && mv "$PORTS_FILE.tmp" "$PORTS_FILE"
     echo "$branch=$offset" >> "$PORTS_FILE"
+}
+
+ports_remove() {
+    local branch="$1"
+    [[ ! -f "$PORTS_FILE" ]] && return 0
+    grep -v "^$branch=" "$PORTS_FILE" > "$PORTS_FILE.tmp" && mv "$PORTS_FILE.tmp" "$PORTS_FILE"
 }
 
 ports_next() {
@@ -483,6 +512,25 @@ cmd_stop() {
     echo "→ stopped $branch"
 }
 
+cmd_rm() {
+    local branch="${1:?Usage: wt rm <branch> [--force]}"
+    local force=""
+    [[ "${2:-}" == "--force" ]] && force="--force"
+
+    local dest="$WORKTREES_DIR/$branch"
+    [[ ! -d "$dest" ]] && echo "No worktree for '$branch'" && exit 1
+
+    cmd_stop "$branch" 2>/dev/null || true
+
+    if command -v scout >/dev/null 2>&1; then
+        scout detach "$dest" 2>/dev/null && echo "→ scout detached $branch" || true
+    fi
+
+    git -C "$MAS_DIR" worktree remove $force "$dest"
+    ports_remove "$branch"
+    echo "→ removed worktree $branch"
+}
+
 cmd_auth() {
     local branch="${1:-}"
     if [[ -z "$branch" ]]; then
@@ -694,6 +742,23 @@ cmd_sync_claude() {
     relink "$MAS_DIR/.specify"  "$dest/.specify"
 }
 
+cmd_repair() {
+    local branch="$1"
+    if [[ -z "$branch" ]]; then
+        local pwd_real
+        pwd_real="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$PWD" 2>/dev/null || echo "$PWD")"
+        if [[ "$pwd_real" == "$WORKTREES_DIR"/* ]]; then
+            branch="${pwd_real#"$WORKTREES_DIR"/}"
+            branch="${branch%%/*}"
+        fi
+        if [[ -z "$branch" ]]; then
+            echo "✗ wt repair: not inside a worktree; pass a branch name explicitly" >&2
+            return 1
+        fi
+    fi
+    cmd_sync_claude "$branch"
+}
+
 cmd_sync_all() {
     local count=0 changed=0
     for wt_dir in "$WORKTREES_DIR"/*/; do
@@ -724,12 +789,14 @@ case "$CMD" in
     new)          cmd_new "$@" ;;
     start)        cmd_start "$@" ;;
     stop)         cmd_stop "$@" ;;
+    rm)           cmd_rm "$@" ;;
     list)         cmd_list ;;
     auth)         cmd_auth "$@" ;;
     test)         cmd_test "$@" ;;
     mcp)          cmd_mcp "$@" ;;
     focus)        cmd_focus "$@" ;;
     sync-claude)  cmd_sync_claude "$@" ;;
+    repair)       cmd_repair "$@" ;;
     sync-all)     cmd_sync_all ;;
-    *)            echo "Usage: wt <new|start|stop|list|auth|test|mcp|focus|sync-claude|sync-all> [args]"; exit 1 ;;
+    *)            echo "Usage: wt <new|start|stop|rm|list|auth|test|mcp|focus|sync-claude|sync-all|repair> [args]"; exit 1 ;;
 esac

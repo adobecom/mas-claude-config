@@ -5,6 +5,9 @@
 #   claude-mas [MWPW-XXXXX|main] [claude-flags...]
 #       Open Claude Code in a MAS worktree (auto-creates if missing).
 #       No args → opens main mas repo.
+#   claude-mas-team [MWPW-XXXXX|main] [claude-flags...]
+#       Same as claude-mas, but launches a cmux Claude Code agent team
+#       (cmux claude-teams) so spawned teammates show as cmux splits.
 #   mas
 #       cd into the main mas repo.
 #
@@ -45,6 +48,44 @@ claude-mas() {
 
     echo "→ $ticket ($target_dir)"
     cd "$target_dir" && claude "$@"
+}
+
+# ─── claude-mas-team ────────────────────────────────────────────────────────────
+# Like claude-mas, but launches a cmux Claude Code agent team instead of a plain
+# Claude session. cmux's `claude-teams` shims tmux and sets
+# CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1, so spawned teammates render as cmux
+# splits. All flags after the ticket are forwarded to Claude Code.
+claude-mas-team() {
+    if ! command -v cmux >/dev/null 2>&1; then
+        echo "claude-mas-team: cmux not found in PATH" >&2
+        return 1
+    fi
+
+    local worktrees_base="$ADOBE_DIR/worktrees"
+
+    if [[ -z "$1" ]]; then
+        echo "→ main team ($MAS_DIR)"
+        cd "$MAS_DIR" && cmux claude-teams
+        return
+    fi
+
+    local ticket="$1"
+    shift
+
+    local target_dir
+    if [[ "$ticket" == "main" ]]; then
+        target_dir="$MAS_DIR"
+    else
+        target_dir="$worktrees_base/$ticket"
+    fi
+
+    if [[ ! -d "$target_dir" ]]; then
+        echo "→ creating worktree for $ticket"
+        (cd "$ADOBE_DIR" && bash worktrees/wt new "$ticket") || return 1
+    fi
+
+    echo "→ $ticket team ($target_dir)"
+    cd "$target_dir" && cmux claude-teams "$@"
 }
 
 # ─── mas ──────────────────────────────────────────────────────────────────────

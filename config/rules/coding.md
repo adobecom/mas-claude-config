@@ -21,6 +21,20 @@ Before modifying these files, STOP:
 - `merch-card.js` → Can conditional rendering solve this?
 - Any `/src/*.js` root file → Is this truly shared, not component-specific?
 
+## Module Boundaries (Studio — Separation of Concerns)
+
+Per `CONTRIBUTING.md` (Studio module table), each view owns its own models:
+
+| Module | Owns |
+|---|---|
+| `common/repository` | Generic repository interaction only |
+| `common/store`, `common/utils`, `common/fields` | Cross-view shared primitives |
+| `fragments/`, `promotions/`, `translation/`, `placeholders/` | Views **and models** specific to that view |
+
+Rule: view-specific data logic belongs in that view's model (`promotions/promotion-*.js`, etc.), **NOT** bolted onto the shared `mas-repository.js`. A new `#someViewSpecificMethod()` or pass-through on `MasRepository` is the boundary-erosion anti-pattern — each view adds its methods and the repository slowly becomes a god-object. This is a recurring PR-review block (npeltier).
+
+Before adding a method to `mas-repository.js`, ask: is this generic repository interaction, or does it know about one view's domain? If the latter → it goes in the view's model.
+
 ## Component-Level Solutions First
 
 1. Can a getter/method in the component solve it? → Do that
