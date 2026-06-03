@@ -10,10 +10,10 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 
 | Component | Count | What it does |
 |-----------|-------|--------------|
-| Coding rules | 15 files | Conventions for Lit, Spectrum, fragments, testing, git workflow |
-| Skills | 24 | `/start-ticket`, `/review-pr`, `/nala-writer`, `/nala-runner`, `/sync-with-main`, ... |
-| Commands | 13 | `/audit-changes`, `/build-swc`, `/mas-lint-fix`, `/mas-test`, `/tickets`, ... |
-| Agents | 15 | Specialized agents for fragment ops, NALA authoring, card development, ... |
+| Coding rules | 20 files | Conventions for Lit, Spectrum, fragments, testing, git workflow, separation of concerns |
+| Skills | 29 | `/start-ticket`, `/mas-pr-review`, `/mas-pr-creator`, `/nala-writer`, `/nala-runner`, `/sync-with-main`, ... |
+| Commands | 6 | `/mas-test`, `/nala`, `/tickets`, `/resume`, `/start-mas`, `/release-mas-js` |
+| Agents | 1 | `studio-state-architecture-agent` (most former agents are now skills) |
 | Hooks | 16 scripts | ESLint + Prettier on save, **secret-leak prevention**, session tracking, compaction prep |
 | Mental models | 1 | `mas-architect` — reviewer-style mental model for pre-submission self-review (`/mental-model:mas-architect:plan`, `:question`, `:self-improve`) |
 | Plugins | Up to 10 | context7, superpowers, playwright, chrome-devtools, commit-commands, figma, challenge, ... |

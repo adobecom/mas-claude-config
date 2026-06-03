@@ -265,6 +265,32 @@ echo "  Commands: $CMD_COUNT files"
 echo "  Agents:   $AGENT_COUNT files"
 echo "  Hooks:    $HOOK_COUNT Python scripts"
 echo ""
+
+# ── README count drift check ───────────────────────────────────────────────
+# The README's "What gets installed" table hardcodes counts; export only copies
+# files in, so trimming config upstream silently leaves the README overstating.
+# Warn (don't fail) when a table cell disagrees with the freshly computed count.
+README_FILE="$BUNDLE_DIR/README.md"
+if [ -f "$README_FILE" ]; then
+  drift_warned=false
+  check_readme_count() {
+    # check_readme_count LABEL_REGEX ACTUAL
+    local label="$1" actual="$2" stated
+    stated=$(grep -iE "^\| *$label *\|" "$README_FILE" 2>/dev/null | grep -oE '[0-9]+' | head -1)
+    if [ -n "$stated" ] && [ "$stated" != "$actual" ]; then
+      [ "$drift_warned" = false ] && { warn "README count drift (update the table in $README_FILE):"; drift_warned=true; }
+      note "  $label: README says $stated, actual is $actual"
+    fi
+  }
+  check_readme_count "Coding rules" "$RULE_COUNT"
+  check_readme_count "Skills" "$SKILL_COUNT"
+  check_readme_count "Commands" "$CMD_COUNT"
+  check_readme_count "Agents" "$AGENT_COUNT"
+  check_readme_count "Hooks" "$HOOK_COUNT"
+  [ "$drift_warned" = false ] && info "README counts in sync"
+  echo ""
+fi
+
 echo "  Commit and push to share with the team:"
 echo "    cd mas-claude-config"
 echo "    git add -A && git commit -m 'chore: update config bundle'"
