@@ -28,6 +28,7 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 |-----------|--------------|
 | Secret-leak hooks | Block writes containing PATs, AWS keys, PEM keys, etc. (override marker: `<!-- secret-ok: reason -->`) |
 | `/scan-secrets` command | One-shot audit for existing credentials on disk |
+| PR babysitter hook (opt-in) | After `git push` / `gh pr create` on an adobecom PR, arms Claude to watch CI to green — auto-fixes stale dist + prettier, reruns flaky NALA E2E (capped), STOPS on real failures. Default off; lets Claude auto-push to your branch. Kill switch: `export BABYSIT_PR=0` |
 | `claude-mas` shell helper | `claude-mas MWPW-XXX` opens Claude Code in that worktree (auto-creates if missing); `mas` cds to main repo |
 | MCP servers | corp-jira, adobe-wiki, fluffyjaws, scout, odin (dev/qa/stage/prod) (see [MCP Servers](#mcp-servers) below) |
 

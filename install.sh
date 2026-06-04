@@ -1081,6 +1081,79 @@ PYEOF
   fi
 }
 
+# ─── Phase: PR babysitter hook ───────────────────────────────────────────────
+
+phase_pr_babysitter() {
+  section "PR Babysitter (opt-in)"
+
+  echo "  Arms a PostToolUse hook after 'git push' / 'gh pr create' on an"
+  echo "  adobecom PR. Claude then watches CI to green: auto-fixes stale dist +"
+  echo "  prettier, reruns flaky NALA E2E (capped), and STOPS on real failures."
+  echo ""
+  echo "  Heads up: this lets Claude auto-commit and auto-push to your PR branch"
+  echo "  (dist rebuilds, prettier). Kill switch any time: export BABYSIT_PR=0"
+  echo ""
+
+  local install_babysit
+  install_babysit=$(prompt_yn "Install the PR babysitter hook?" "n")
+  if [ "$install_babysit" != "y" ]; then
+    return
+  fi
+
+  local hooks_dest="$HOME/.claude/hooks"
+  mkdir -p "$hooks_dest"
+  cp "$SCRIPT_DIR/config/hooks/babysit_pr_arm.py" "$hooks_dest/babysit_pr_arm.py"
+  chmod +x "$hooks_dest/babysit_pr_arm.py"
+  info "Installed: ~/.claude/hooks/babysit_pr_arm.py"
+
+  local settings_path="$HOME/.claude/settings.json"
+  python3 - "$settings_path" "$hooks_dest" <<'PYEOF'
+import json
+import sys
+from pathlib import Path
+
+settings_path = Path(sys.argv[1])
+hooks_dest = sys.argv[2]
+
+BABYSIT_HOOK = {
+    "matcher": "Bash",
+    "hooks": [{
+        "type": "command",
+        "command": f"python3 {hooks_dest}/babysit_pr_arm.py",
+    }],
+}
+
+if settings_path.exists():
+    try:
+        s = json.loads(settings_path.read_text())
+    except Exception:
+        s = {}
+else:
+    s = {}
+
+s.setdefault("hooks", {})
+post = s["hooks"].setdefault("PostToolUse", [])
+
+def already_wired(target_cmd: str) -> bool:
+    for block in post:
+        for h in block.get("hooks", []) or []:
+            if isinstance(h, dict) and target_cmd in (h.get("command") or ""):
+                return True
+    return False
+
+if not already_wired("babysit_pr_arm.py"):
+    post.append(BABYSIT_HOOK)
+    settings_path.parent.mkdir(parents=True, exist_ok=True)
+    settings_path.write_text(json.dumps(s, indent=2) + "\n")
+    print("settings.json: armed PR babysitter (PostToolUse/Bash)")
+else:
+    print("settings.json: PR babysitter already wired — no change")
+PYEOF
+
+  info "Wired PR babysitter in ~/.claude/settings.json"
+  note "Disable any time:  export BABYSIT_PR=0"
+}
+
 # ─── Phase: Worktrees ─────────────────────────────────────────────────────────
 
 phase_worktrees() {
@@ -1262,6 +1335,7 @@ case "$MODE" in
     INSTALLED_CONFIG=true
     phase_user_skills
     phase_secret_hooks
+    phase_pr_babysitter
     phase_plugins
     INSTALLED_PLUGINS=true
     phase_mcp
@@ -1274,6 +1348,7 @@ case "$MODE" in
     phase_config
     phase_user_skills
     phase_secret_hooks
+    phase_pr_babysitter
     phase_shell_helpers
     info "Config installed."
     ;;
