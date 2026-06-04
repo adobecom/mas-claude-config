@@ -1338,6 +1338,9 @@ phase_pm_intro() {
   echo ""
   echo "  Skips dev-only tooling: build, nala, worktrees, eslint hooks, PR babysitter."
   echo ""
+  echo "  Note: these skills install into mas/.claude/ — open Claude Code from"
+  echo "  inside the mas/ directory for them to activate."
+  echo ""
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
