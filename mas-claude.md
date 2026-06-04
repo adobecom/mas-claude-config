@@ -55,6 +55,7 @@ When debugging, do NOT conclude root cause until verified end-to-end (logs, repr
 - Avoid changes to `io/www/` and `io/www/src/fragment/` unless strictly necessary — these are critical paths and changes require strong justification; the rest of `io/` is fair game
 - Use `fj chat "question"` for Adobe/AEM questions
 - Use context7 MCP for Spectrum/Lit docs before implementing
+- Write code test-first in `studio/src/`, `web-components/src/`, and `io/` (excl. `io/www/src/fragment/`) — invoke `superpowers:test-driven-development` before implementation; new exported functions require a test before merge. Skip for nala test-only, pure-CSS, and trivial edits. See `.claude/rules/testing.md` → TDD Discipline.
 - When adding new functions/constants intended to be tested, export them from the module *before* writing the test — skip this and the first test run will fail with a module resolution error (learned from DESTRUCTIVE_TOOLS incident)
 - For MWPW-* branch audits, follow the wave structure (Wave 0 sync → Wave 1 ship blockers → Wave 2 dead code → Wave 3 hardening → Wave 4 coverage) via the `audit-wave` skill; update the plan doc as each item lands
 - After any security fix (auth, URL validation, prompt injection, ReDoS), run the full relevant test suite and report the pass/fail delta vs baseline in your summary — never claim a security fix is done without that delta

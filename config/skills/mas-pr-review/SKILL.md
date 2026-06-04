@@ -121,20 +121,24 @@ Output (under 500 words): findings as [SEV] file:line — contract concern, what
 ### Agent D — Coverage + dead code
 
 ```
-You are auditing PR <PR_URL> for test coverage gaps and dead code only.
+You are auditing PR <PR_URL> for test coverage gaps, TDD discipline, and dead code only.
 
-Scope: untested branches in changed production files; unused imports/exports/constants introduced by the diff; orphan CSS classes / selectors with no JS assignment; test-quality smells (real timers in debounce tests, config singleton mutation, unkeyed snapshot-style assertions).
+Scope: untested branches in changed production files; **new exported functions/constants with zero tests**; test structure (one-behavior-per-test, AAA-in-spirit); unused imports/exports/constants introduced by the diff; orphan CSS classes / selectors with no JS assignment; test-quality smells (real timers in debounce tests, config singleton mutation, unkeyed snapshot-style assertions).
 
 Diff: <DIFF_PATH>
 Live source: __ADOBE_DIR__/milo/libs/ and __MAS_DIR__/.
 
-Methodology: focus on **changed files only**. Don't survey the whole test landscape. For each new function/branch, check whether the test file added in the same PR exercises it.
+Methodology: focus on **changed files only**. Don't survey the whole test landscape. For each new exported function/branch, check whether the test file added in the same PR exercises it.
+
+TDD enforcement (applies to source in studio/src, web-components/src, io/ — NOT nala test-only or pure-CSS diffs):
+- A new exported function/constant with **no test at all** is a **HIGH** (block-worthy) coverage finding — call it out explicitly with the symbol name. This is the one case that escalates above MEDIUM.
+- Tests that assert multiple unrelated behaviors in one `it()`, or that lack a clear setup→action→assert flow, are **LOW** nits — note them, don't block. Do NOT flag absence of `// Arrange/Act/Assert` comments (the repo forbids inline comments).
 
 Constraints: "alive" means used by production code OR by tests. Test-only usage counts as alive. Dead code findings must cite the symbol name and declaration file:line.
 
 Skip security, correctness, MAS contracts.
 
-Output (under 400 words): two sections — Coverage gaps, Dead code. Each finding cited with file:line. SEV ∈ {MEDIUM, LOW}. Verdict on adequacy for the size of the change.
+Output (under 400 words): three sections — Coverage gaps (incl. untested new exports as HIGH), Test structure nits, Dead code. Each finding cited with file:line. SEV ∈ {HIGH, MEDIUM, LOW}. Verdict on adequacy for the size of the change.
 ```
 
 ## Phase 5 — Synthesize
@@ -145,7 +149,7 @@ When all agents return:
 
 2. **Verify every MEDIUM+ finding** against current source before including. Read the cited file:line, check the surrounding context, confirm the claim. **Mandatory** — this is the false-positive filter. If verification fails, drop the finding or downgrade to LOW with note "unverified — author should check."
 
-3. **Resolve severity disagreements** by taking the **producing agent's** severity (the one whose domain it's in), not the max. A coverage agent flagging an untested path is LOW unless the path itself is exploitable; severity comes from the security agent's read of that path, not the coverage agent's anxiety.
+3. **Resolve severity disagreements** by taking the **producing agent's** severity (the one whose domain it's in), not the max. A coverage agent flagging an untested *branch* is LOW unless the path itself is exploitable; severity comes from the security agent's read of that path, not the coverage agent's anxiety. **Exception:** a new exported function with *zero* tests is the coverage agent's own HIGH (TDD block) — keep it HIGH; this is a deliberate policy, not anxiety.
 
 4. **Rank** — split output into two artifacts:
 
