@@ -200,8 +200,8 @@ If FluffyJaws was skipped, append a one-line footer:
 
 After presenting the briefing, suggest appropriate next steps based on ticket complexity:
 
-- **Complex feature** (multiple acceptance criteria, architectural impact, > 5 files in scope): "This looks like a substantial feature. I'd recommend running `/speckit.specify` to create a spec, then `/speckit.plan` for implementation planning."
-- **Medium task** (clear scope, 2-5 files): "This has clear scope. Want to jump into planning with `/speckit.plan`, or start coding directly?"
+- **Complex feature** (multiple acceptance criteria, architectural impact, > 5 files in scope): "This looks like a substantial feature. I'd recommend the `plan-build-test` (or `full`) pipeline — start with brainstorming to lock the design, then writing-plans for the implementation plan."
+- **Medium task** (clear scope, 2-5 files): "This has clear scope. Want to jump into planning with the `plan-build` pipeline, or start coding directly?"
 - **Simple fix** (single file, verified RCA, obvious change): "This looks straightforward. Want to start coding?"
 
 Do NOT automatically transition to the next step. Wait for the user to decide.

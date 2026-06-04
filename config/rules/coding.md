@@ -44,7 +44,7 @@ Before adding a method to `mas-repository.js`, ask: is this generic repository i
 
 ## Code Quality
 
-Full coding principles with examples: `.specify/memory/constitution.md`
+Full coding principles with examples: `.claude/rules/constitution.md`
 
 Key tables from the constitution apply here:
 - Getters over querySelector (queried 2+ times → getter)

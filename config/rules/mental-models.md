@@ -4,7 +4,7 @@ Mental models provide structured reviewer/domain expertise via subagents (~500 t
 
 ## Automatic Triggers
 
-### When Planning (plan mode, /speckit.plan, or any implementation planning)
+### When Planning (plan mode or any implementation planning)
 Before creating a plan for changes that touch files in the MAS architect's ownership areas:
 - `io/www/`, `io/studio/` (primary owner — deep review)
 - `studio/src/` (active reviewer — architectural focus)

@@ -70,10 +70,4 @@ When debugging, do NOT conclude root cause until verified end-to-end (logs, repr
 - If cleaning up after changes → read `.claude/rules/dead-code-cleanup.md`
 - If planning, creating PRs, or reviewing code → read `.claude/rules/mental-models.md`
 - Before placing new code or deciding which module owns a method (esp. in `studio/`) → consult the Studio module table in `CONTRIBUTING.md`; view-specific logic goes in the view's model, not `common/repository`
-- For full coding principles with examples → `.specify/memory/constitution.md`
-
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-<!-- SPECKIT END -->
+- For full coding principles with examples → `.claude/rules/constitution.md`
