@@ -7,6 +7,7 @@
 #   ./install.sh --config-only      # Config files only
 #   ./install.sh --plugins-only     # Plugins only
 #   ./install.sh --mcp-only         # MCP servers only
+#   ./install.sh --pm               # PM spec-authoring setup (skips dev tooling)
 #   ./install.sh --non-interactive  # Silent install with all defaults
 #   ./install.sh --mas-dir PATH     # Override MAS repo path
 #   ./install.sh --adobe-dir PATH   # Override adobe parent path
@@ -191,6 +192,7 @@ while [[ $# -gt 0 ]]; do
     --config-only)     MODE="config"; shift ;;
     --plugins-only)    MODE="plugins"; shift ;;
     --mcp-only)        MODE="mcp"; shift ;;
+    --pm)              MODE="pm"; shift ;;
     --non-interactive) NON_INTERACTIVE="true"; shift ;;
     --mas-dir)         CUSTOM_MAS_DIR="$2"; shift 2 ;;
     --adobe-dir)       CUSTOM_ADOBE_DIR="$2"; shift 2 ;;
@@ -1325,6 +1327,22 @@ phase_summary() {
   print_summary_box "${lines[@]}"
 }
 
+# ─── Phase: PM intro ─────────────────────────────────────────────────────────
+
+phase_pm_intro() {
+  section "PM Spec-Authoring Setup"
+  echo "  Installs the spec-authoring toolset for product managers:"
+  echo "  • Skills: pm-spec-author, pm-prior-art, jira-ticket-creator, start-ticket"
+  echo "  • Read/research MCP: corp-jira, Scout, GitHub, Odin (answer the prompts)"
+  echo "  • Architecture docs (CLAUDE.md) so specs ground in real code"
+  echo ""
+  echo "  Skips dev-only tooling: build, nala, worktrees, eslint hooks, PR babysitter."
+  echo ""
+  echo "  Note: these skills install into mas/.claude/ — open Claude Code from"
+  echo "  inside the mas/ directory for them to activate."
+  echo ""
+}
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 case "$MODE" in
@@ -1358,5 +1376,16 @@ case "$MODE" in
     ;;
   mcp)
     phase_mcp
+    ;;
+  pm)
+    print_banner
+    phase_pm_intro
+    phase_prerequisites
+    phase_config
+    INSTALLED_CONFIG=true
+    phase_user_skills
+    phase_secret_hooks
+    phase_mcp
+    info "PM setup installed. Try: /pm-prior-art or /pm-spec-author in Claude Code."
     ;;
 esac

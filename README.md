@@ -11,7 +11,7 @@ This repo bundles the Claude Code configuration used by the MAS team — coding 
 | Component | Count | What it does |
 |-----------|-------|--------------|
 | Coding rules | 20 files | Conventions for Lit, Spectrum, fragments, testing, git workflow, separation of concerns |
-| Skills | 15 | `/start-ticket`, `/mas-pr-review`, `/mas-pr-creator`, `/nala-writer`, `/nala-runner`, `/sync-with-main`, ... |
+| Skills | 17 | `/start-ticket`, `/mas-pr-review`, `/mas-pr-creator`, `/pm-spec-author`, `/pm-prior-art`, `/nala-writer`, ... |
 | Commands | 6 | `/mas-test`, `/nala`, `/tickets`, `/resume`, `/start-mas`, `/release-mas-js` |
 | Agents | 1 | `studio-state-architecture-agent` (most former agents are now skills) |
 | Hooks | 16 scripts | ESLint + Prettier on save, **secret-leak prevention**, session tracking, compaction prep |
@@ -66,6 +66,7 @@ The wizard will:
 ./install.sh --config-only      # Update config files only (no plugin/MCP prompts)
 ./install.sh --plugins-only     # Re-configure plugins only
 ./install.sh --mcp-only         # Re-configure MCP servers only
+./install.sh --pm               # PM spec-authoring setup (skills + read MCP, no dev tooling)
 ./install.sh --non-interactive  # Silent install with all defaults
 ```
 
