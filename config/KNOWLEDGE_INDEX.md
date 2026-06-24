@@ -17,6 +17,8 @@
 | MAS libs parameters | `maslibs-parameter-guide` |
 | New component | `mas-component-generator` |
 | Figma → merch card | `figma-to-merch-card` |
+| Figma → Studio view | `figma-to-studio-view` |
+| Studio view wiring reference | `mas-studio-view` |
 | Coding conventions | `mas-coding-conventions` |
 | Sync with main | `sync-with-main` |
 | WTR tests | `wtr-specialist` |
