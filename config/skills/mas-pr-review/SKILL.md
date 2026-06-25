@@ -156,6 +156,13 @@ When all agents return:
    **(a) Internal analysis (chat only):** the structured view for the user to inspect — verified-clean / medium / low sections, file:line citations, methodology. This is for the user to vet your work, not for posting.
 
    **(b) GitHub comment (casual):** what actually gets posted. Short and human, written like a teammate dropping a note in a thread.
+
+   **The value test — every sentence must earn its place.** A reviewer comment is read by the author (who already knows the root cause — they wrote the fix) and by a future human wanting the *verdict*, not a re-explanation. Before including a sentence, ask: **does this tell the author something they don't already know, or that the diff/tests/commit message don't already say?** If no, cut it.
+   - **Do NOT** re-explain the root cause back to the author, restate what the code comments already say, or narrate the fix mechanism in detail. That's bloat — it serves no reader. (The author knows; a future reader gets it from the code, tests, and commit.)
+   - **Do NOT** write verbose explanations "so an LLM can reference them later." Future LLMs retrieve from code, tests, and git blame — not from decayed PR threads. Durable explanation belongs in the **code comment, commit message, or test name**, not the review comment.
+   - **DO** include only what adds value the author lacks: a defect they missed, a non-obvious cross-cutting constraint the diff can't express ("only safe because WCS runs after init"), a justification for a requested change, or a one-line signal that you checked the slip-prone part (parallelism preserved, guard reorder benign).
+   - The deep root-cause analysis is for the **internal artifact (a)**, where it helps the user vet your review. Posting it is where its value drops to ~zero.
+
    - One-line verdict ("LGTM, nice fix" / "approving — looks good" / "few small things").
    - 2-4 sentences of plain-language reasoning about *why* the change works (or doesn't). No section headers.
    - Nits/follow-ups as a trailing bullet or short sentence — not a "## Low" block.

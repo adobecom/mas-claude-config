@@ -24,6 +24,8 @@
 | WTR tests | `wtr-specialist` |
 | Jira ticket | `jira-ticket-creator` |
 | Start ticket | `start-ticket` |
+| Document a Studio feature | `mas-studio-docs` |
+| Sync PRs to Jira status | `sync-pr-jira` |
 
 ## Quick Commands
 
