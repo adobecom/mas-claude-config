@@ -1,0 +1,21 @@
+{
+  "me": {
+    "githubLogin": "Axelcureno",
+    "jiraName": "axel"
+  },
+  "qa": [
+    {
+      "githubLogin": "afmicka",
+      "jiraName": "cod23684",
+      "displayName": "Milica Micic"
+    }
+  ],
+  "nalaGateCheckName": "Nala Gate",
+  "requiredApprovals": 2,
+  "statuses": {
+    "inDevelopment": "In Development",
+    "codeReview": "Code Review",
+    "readyForQa": "Ready For QA"
+  },
+  "ignoreChecks": ["Nala Gate", "Running Nala Studio E2E UI Tests", "Running Nala Docs E2E UI Tests"]
+}

@@ -198,11 +198,28 @@ If FluffyJaws was skipped, append a one-line footer:
 
 ### Phase 6: Next Steps
 
-After presenting the briefing, suggest appropriate next steps based on ticket complexity:
+Deterministically route to the right planning system based on the ticket's complexity. There are two systems in this repo — pick by scoring the ticket, do NOT offer `/speckit.*` (spec-kit is not installed here).
 
-- **Complex feature** (multiple acceptance criteria, architectural impact, > 5 files in scope): "This looks like a substantial feature. I'd recommend the `plan-build-test` (or `full`) pipeline — start with brainstorming to lock the design, then writing-plans for the implementation plan."
-- **Medium task** (clear scope, 2-5 files): "This has clear scope. Want to jump into planning with the `plan-build` pipeline, or start coding directly?"
-- **Simple fix** (single file, verified RCA, obvious change): "This looks straightforward. Want to start coding?"
+| System | What it is | Use when |
+|--------|-----------|----------|
+| **Claude native plan mode** | Built-in `EnterPlanMode` → plan → `ExitPlanMode` approval gate. No saved artifacts, no resumability. | Lower-complexity tickets where one approve-before-build gate is enough. |
+| **Superpowers pipeline** | `brainstorming` → `writing-plans` (saves `.claude/plans/TICKET.md` + `TICKET-state.json`) → `subagent-driven-development`, resumable via `/resume`. | Higher-complexity tickets that benefit from a saved, resumable plan and subagent fan-out. |
+
+**Score the ticket (count how many hold):**
+
+1. Touches > 3 source files, OR spans > 1 layer (studio + io, or MAS + Milo).
+2. Has a genuine design fork / architectural decision (not just "where's the bug").
+3. ≥ 3 acceptance criteria, OR is a Story/Epic rather than a single Bug.
+4. No verified RCA yet — root cause still needs investigation.
+5. Cross-team / cross-repo coordination implied.
+
+**Deterministic routing:**
+
+- **0–1 points → Simple fix.** Native plan mode (or code directly if RCA is verified and the change is obvious): "This looks straightforward — verified RCA, contained change. Want me to enter plan mode, or start coding directly?"
+- **2 points → Medium task.** Native plan mode: "Clear scope. I'd suggest entering plan mode (native approve-before-build), then implementing. Proceed?"
+- **3+ points → Substantial.** Superpowers pipeline: "This is substantial (scored N: list which criteria hit). I'd recommend the Superpowers pipeline — `superpowers:brainstorming` to resolve the design fork, then `superpowers:writing-plans` saving to `.claude/plans/TICKET.md`. Choose a pipeline (`plan-only` / `plan-build` / `plan-build-test` / `full`)."
+
+State the score and which criteria triggered so the routing is transparent.
 
 Do NOT automatically transition to the next step. Wait for the user to decide.
 
