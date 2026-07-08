@@ -1,5 +1,7 @@
 ---
 name: mas-pr-creator
+model: sonnet
+effort: medium
 description: Automatically detect PR creation intent and guide the process. Extracts JIRA ticket from branch, generates proper PR title and body, runs pre-flight checks, and creates PR using gh CLI. Use when user wants to create/raise/submit a PR.
 tags: [pr, pull-request, github, jira, review]
 triggers:
@@ -157,7 +159,7 @@ Fix with:
 
 Before creating the PR, run an automated check against the MAS architect's review values.
 
-**Spawn an Explore subagent** with this prompt:
+**Spawn an Explore subagent** (dispatch with `model: haiku` — it reads one yaml + the diff and matches against a fixed red-flag list; no synthesis needed) with this prompt:
 
 > Read `.claude/commands/mental-model/mas-architect/expertise.yaml`.
 > Read the git diff for this PR: `git diff main..HEAD`

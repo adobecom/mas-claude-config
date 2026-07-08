@@ -1,4 +1,6 @@
 ---
+model: haiku
+effort: low
 skill: mas-unit-test-runner
 description: Comprehensive unit test management for MAS Studio - run, debug, fix, and write tests with intelligent error analysis
 activation: Use when user mentions "test", "unit test", "failing test", "run tests", "fix test", "test error", "test failure", "write test", or "create test"

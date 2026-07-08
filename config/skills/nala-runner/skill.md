@@ -1,5 +1,7 @@
 ---
 name: nala-runner
+model: haiku
+effort: low
 description: "Run, debug, and fix NALA E2E tests. Handles test execution with npm run nala, environment pre-flight checks, failure diagnosis, and automated fixing. Use when running tests, debugging failures, fixing broken tests, or checking if tests pass. Activates on: 'run nala', 'nala test', 'fix nala', 'nala failing', 'debug nala', 'check tests', 'test this'."
 ---
 

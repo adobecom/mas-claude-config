@@ -1,5 +1,7 @@
 ---
 name: maslibs-parameter-guide
+model: haiku
+effort: low
 version: 1.0.0
 description: Comprehensive guide for using the maslibs URL parameter to test MAS web component changes locally and from feature branches. Use when testing local MAS changes, debugging components, or validating feature branches.
 activationPhrases:

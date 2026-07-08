@@ -1,5 +1,7 @@
 ---
 name: wtr-specialist
+model: sonnet
+effort: medium
 description: Write and debug Web Test Runner (WTR) unit tests for MAS Studio components. Use when writing unit tests, debugging test failures, or setting up component test fixtures. Activates on "unit test", "wtr", "web test runner", "component test", "test fixture", "mock store", "@open-wc/testing".
 ---
 

@@ -387,12 +387,6 @@ phase_config() {
     info "Installed $subdir_count subdir CLAUDE.md file(s)"
   fi
 
-  # Copy .graphifyignore (only if user hasn't customized one)
-  if [ -f "$SCRIPT_DIR/.graphifyignore" ] && [ ! -f "$MAS_DIR/.graphifyignore" ]; then
-    cp "$SCRIPT_DIR/.graphifyignore" "$MAS_DIR/.graphifyignore"
-    info "Installed .graphifyignore"
-  fi
-
   # Replace path placeholders
   step "Configuring paths..."
   find "$claude_dest" "$MAS_DIR/CLAUDE.md" \
@@ -883,7 +877,7 @@ phase_user_skills() {
   echo "  • mas-unit-test-runner        — run/fix/write WTR unit tests"
   echo "  • nala-test-runner            — run/debug Nala E2E tests"
   echo "  • extension-devtools-debugger — debug the MAS Studio Chrome extension"
-  echo "  • statusline                  — branch, port, Jira link, Local/Remote links"
+  echo "  • statusline                  — branch (from git), Jira/PR links, Local/Remote/Code/Finder + context·cost·usage·model line"
   echo ""
 
   local install_user

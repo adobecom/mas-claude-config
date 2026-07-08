@@ -1,5 +1,7 @@
 ---
 name: sync-with-main
+model: haiku
+effort: low
 description: Safely sync feature branch with main, auto-resolve dist conflicts, rebuild bundles, and push. Use when updating branch from main, resolving merge conflicts, or preparing for PR. Activates on "sync with main", "merge main", "update from main", "resolve conflicts".
 tags: [git, merge, sync, build, dist]
 triggers:

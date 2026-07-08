@@ -1,5 +1,7 @@
 ---
 name: audit-wave
+model: sonnet
+effort: high
 description: Scaffold a 4-wave architectural audit (smoke → security → hardening → deliverables) for a branch with characterization-test discipline. Use for pre-review audits of large MWPW branches (1000+ LOC, multiple features). Activates on "audit this branch", "wave audit", "pre-review audit", "architectural review".
 tags: [audit, review, security, wave, pre-review, refactor]
 triggers:
@@ -78,7 +80,7 @@ Create `.claude/plans/<TICKET>-audit.md` with this structure:
 
 ### Phase 2: Adversarial Discovery
 
-Spawn 3 parallel Explore subagents with these personas:
+Spawn 3 parallel Explore subagents with these personas. **Dispatch each with `model: haiku`** — discovery is checklist-driven pattern search over the diff; the sonnet orchestrator (this skill) does the wave sequencing, characterization-test writing, and fix-priority judgment.
 1. **Security** — injection, auth bypass, ReDoS, input validation, URL hardening
 2. **Architect** — dead code, duplication, shared-utility misuse, API contract drift
 3. **Simplifier** — getters over querySelector, conditional rendering, CSS-solvable problems

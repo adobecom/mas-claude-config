@@ -1,5 +1,7 @@
 ---
 name: sync-pr-jira
+model: haiku
+effort: low
 description: Sync your open PRs' review state to their Jira ticket status (Code Review / In Development / Ready For QA) and re-request stale reviewers. Computes the correct transition per PR from GitHub signals, prints a dry-run by default, applies only with --apply. Use when the user asks to "sync PRs to Jira", "update ticket statuses", "track my PRs", "move tickets based on review state", or "re-request reviews".
 tags: [pr, jira, review, automation, workflow]
 ---

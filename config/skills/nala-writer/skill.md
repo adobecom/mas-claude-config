@@ -1,5 +1,7 @@
 ---
 name: nala-writer
+model: sonnet
+effort: medium
 description: "Write, create, and modify NALA E2E tests. Handles new test suite creation, test case addition, page object updates, and spec modifications. Use when writing new tests, adding test cases, creating test suites for new features, or modifying existing tests. Activates on: 'write nala test', 'create test for', 'add test case', 'new nala test', 'scaffold test', 'modify nala test', 'update test'."
 ---
 

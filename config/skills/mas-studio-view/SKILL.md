@@ -1,5 +1,7 @@
 ---
 name: mas-studio-view
+model: haiku
+effort: low
 description: Correct patterns for registering a new page/view in M@S Studio — PAGE_NAMES, Store namespace, studio.js getter, side-nav item, router wiring, Lit component structure, shared table styles. Use whenever building or modifying a Studio list/table view.
 type: project
 ---

@@ -1,5 +1,7 @@
 ---
 name: adversarial-swarm
+model: sonnet
+effort: high
 description: Spawn 6 parallel adversarial sub-agents to audit a worktree or diff range from distinct personas (security, auth, ReDoS, dead-code, API contract, performance), then dedupe and rank findings via coordinator. Use for compressed multi-day audits. Activates on "adversarial swarm", "parallel audit", "swarm audit".
 tags: [audit, parallel, adversarial, swarm, security]
 triggers:
@@ -37,7 +39,7 @@ Compress multi-day wave audits into a single afternoon by running 6 specialized 
 
 ### Phase 2: Dispatch Swarm
 
-Use `superpowers:dispatching-parallel-agents` for the mechanics. Spawn **6 Explore subagents in one message** (single Agent tool block with 6 tool_use entries). Each gets:
+Use `superpowers:dispatching-parallel-agents` for the mechanics. Spawn **6 Explore subagents in one message** (single Agent tool block with 6 tool_use entries). **Dispatch each finder with `model: haiku`** — each persona is a fixed adversarial checklist over the diff, so the cheap model is sufficient; the sonnet coordinator (this skill) does the judgment-heavy dedup and severity ranking in Phase 3. Each gets:
 
 | # | Persona | Focus |
 |---|---------|-------|

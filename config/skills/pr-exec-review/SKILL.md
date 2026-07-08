@@ -65,6 +65,8 @@ Format:
 
 ### Phase 3: Artifact 2 — Casual Reviewer Comments
 
+**Model routing (optional):** Artifact 1 (the technical critique) is the quality-critical, adversarial part — keep it on the session model (Opus). Artifacts 2 and 3 are pure tone/format rewrites of Artifact 1's findings; you may delegate each to an Explore/general-purpose subagent with `model: sonnet` (pass it Artifact 1's text), or write them inline if the PR is small. Do not delegate Artifact 1.
+
 Rewrite Artifact 1's findings as individual GitHub comments in a collaborative, casual tone:
 - No corporate hedging ("it might be nice to consider perhaps...")
 - No robot-speak — read like a senior engineer on Slack

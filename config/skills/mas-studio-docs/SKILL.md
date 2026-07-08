@@ -1,5 +1,7 @@
 ---
 name: MAS Studio Docs Authoring
+model: sonnet
+effort: medium
 description: Author and publish feature documentation for MAS Studio to the DA-backed docs site at mas.adobe.com/docs/<feature>/. Sources content from the actual Studio code (help text, store, components) so docs match shipped behavior, writes pages via the DA source API (admin.da.live), and publishes via Edge Delivery (admin.hlx.page). Use when asked to "document a studio feature", "write OST/feature docs", "add a docs page", "publish to mas.adobe.com/docs", or to wire an in-app Help link to the docs. Mirrors the workflow used to build /docs/ost.
 tags: [studio, documentation, da, da.live, edge-delivery, docs, ost, authoring]
 allowed-tools:

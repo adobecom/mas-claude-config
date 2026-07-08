@@ -1,5 +1,7 @@
 ---
 name: start-ticket
+model: sonnet
+effort: high
 description: Start working on a NEW or UNFAMILIAR Jira ticket — gathers Jira context, runs targeted codebase analysis, and only pulls FluffyJaws (Slack/wiki) research when the ticket actually needs it. Only invoke when explicitly asked to "start", "begin", or "pick up" a ticket, NOT for switching context on an already-known ticket.
 tags: [jira, ticket, start, worktree, context, planning]
 triggers:
@@ -98,6 +100,8 @@ Record the decision as `codebaseMode = "verify"` or `codebaseMode = "discover"`.
 ### Phase 4: Codebase + (optional) FluffyJaws Research
 
 Launch agents **in parallel** (single message with multiple Agent tool calls). Always launch the Codebase Explorer. Launch FluffyJaws **only if Phase 3.5 set `fjGate = "run"`**.
+
+**Model routing:** dispatch the Codebase Explorer with `model: sonnet` (code search + relevance judgment) and the FluffyJaws research agent with `model: sonnet` (Slack/wiki synthesis). If Jira context is fetched via its own agent, dispatch that with `model: haiku` (mechanical field extraction). Keep any architecture/plan-synthesis step on the session model (Opus).
 
 **Agent A: Codebase Explorer** (subagent_type: Explore)
 

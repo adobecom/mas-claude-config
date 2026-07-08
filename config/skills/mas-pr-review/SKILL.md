@@ -60,6 +60,8 @@ Skip the MAS-integration agent if no file in the diff matches `libs/blocks/{merc
 
 Dispatch all selected agents in a **single message with multiple `Agent` tool calls** (concurrent, `run_in_background: true`). Each agent gets the cached diff path, the PR URL, and live source paths. Each agent prompt is self-contained — they do not see this skill or session history.
 
+**Model routing:** dispatch every finder agent (correctness, security, MAS-integration, coverage) with `model: sonnet` — they read a scoped slice of the diff against current source and report findings, which sonnet handles well. Keep this skill's own reasoning on the session model (Opus) for Phase 5+ synthesis, false-positive verification, and severity resolution — that judgment is where quality matters and must not be downgraded. (For a high-stakes security-critical PR, you may raise an individual finder to `model: opus`; do not blanket-upgrade.)
+
 Source paths to include in every agent prompt:
 - Milo: `__ADOBE_DIR__/milo/libs/` (current main, may differ from PR branch)
 - MAS web-components: `__MAS_DIR__/web-components/src/`

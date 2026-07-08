@@ -1,5 +1,7 @@
 ---
 name: MAS Studio Navigator
+model: haiku
+effort: low
 description: Navigate and interact with MAS Studio UI using Playwright and Chrome DevTools MCPs. Handles page navigation, fragment operations (select, open, edit, save, discard), form field editing, dialogs, network inspection, console debugging, and performance analysis. Use when navigating studio, editing fragments, debugging UI issues, or automating workflows. Activates on "navigate studio", "open studio", "click", "fill field", "open fragment", "edit fragment", "save fragment", "debug studio", "inspect console", "check network".
 tags: [studio, playwright, chrome-devtools, ui, navigation, automation, debugging, fragments, editor]
 allowed-tools:

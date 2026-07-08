@@ -1,5 +1,7 @@
 ---
 name: jira-ticket-creator
+model: haiku
+effort: low
 description: Create, file, open, make, or log Jira tickets in the MWPW project via corp-jira MCP. Handles required fields (team, component, issue type) automatically. Use when the user wants to create/file/open/make/log a Jira ticket, task, story, bug, or issue — any phrasing including "create jira", "file a ticket", "open a story", "make a bug", "log a ticket", "new MWPW ticket", "raise a bug".
 tags: [jira, ticket, task, story, bug, mwpw]
 triggers:

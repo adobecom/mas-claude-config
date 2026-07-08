@@ -1,5 +1,7 @@
 ---
 name: card-variant-registry
+model: haiku
+effort: low
 description: Reference for all merch-card variants, their field schemas, CSS classes, and slot mappings. Use when adding new variants, debugging variant rendering, or understanding variant differences. Activates on "card variant", "variant fields", "variant schema", "add variant", "variant slots", "variant rendering".
 ---
 
