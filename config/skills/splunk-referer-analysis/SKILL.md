@@ -66,8 +66,27 @@ Consequences for every number you report:
 4. **Check whether the culprit is a variation** (see "Variations must never be served
    directly" below). This changes both the root cause and who owns the fix.
 
-5. **Report** in the output format below. Lead with the verdict. Present all volumes
+5. **Trace the referer's EDS/MEP source** when the error is a `merch-card` hydration
+   failure but the live fragment looks field-only/headless (see "Headless / field-only
+   fragment rendered as a card" below). This is what separates an authoring fault from a
+   Milo autoblock/rollout fault — do it before you blame the author.
+
+6. **Build a Studio link** for each culprit fragment so the author/engineer can open it
+   in one click (see "Studio deep link" below).
+
+7. **Report** in the output format below. Lead with the verdict. Present all volumes
    as sampling-scaled estimates per the "Sampling" section — never bare 1% counts.
+
+## Studio deep link
+
+For every culprit fragment id, emit a link that opens it directly in the M@S Studio
+fragment editor:
+
+```
+https://mas.adobe.com/studio.html#page=fragment-editor&fragmentId=<culprit-id>
+```
+
+(`page=fragment-editor` and `fragmentId` are the router's hash keys — `studio/src/mas-fragment-editor.js` `getFragmentEditorUrl`, `studio/src/router.js`. Everything lives after the `#`.) One link per `culprit_fragment_ids` entry; label it so a non-engineer knows it opens the card. This link is the one piece of "technical" output that **is** allowed in an AUTHORING report — it's the author's fix entry point, not jargon.
 
 ## Variations must never be served directly
 
@@ -93,6 +112,60 @@ to stop pointing at the variation (point MEP / the link at the base card so the 
 merges correctly), and the recurring-risk note applies: any promo/grouped variation
 reachable by a direct id is one MEP mistarget away from this same failure.
 
+## Headless / field-only fragment rendered as a card
+
+**A `no template found` error does NOT always mean the author did something wrong.** A
+fragment authored to be consumed field-by-field through `<mas-field field="...">` (e.g.
+a "Headless"/"Promobar" fragment supplying a `callout`, a price, or a `customFields`
+string) legitimately has **no variant** — `mas-field` never touches the variant
+(`web-components/src/mas-field.js` reads `event.detail.fields` and renders one field; no
+`hydrate()`, no template lookup). Only `merch-card` throws `no template found in
+payload`. So if a field-only fragment is producing a **`merch-card[...]`** hydration
+error, something rendered it as a card that shouldn't have — that is usually **CODE**,
+not authoring.
+
+Before you write an AUTHORING verdict for `no template found`, trace how the referer
+actually references the id:
+
+1. **Fetch the referer's rendered HTML and its `.plain.html`.** An id absent from
+   `.plain.html` but present in the rendered page is **injected by MEP/personalization**
+   — look for a `*.json` manifest reference (`action: replace`, `selector`/`all`), and
+   read that manifest to find the replacement EDS fragment.
+2. **Open the replacement EDS fragment source** (`<host>/<path>.plain.html` on
+   `main--<repo>--adobecom.aem.live` or `www.adobe.com`) and grep for the culprit id.
+3. **Inspect how the id is referenced.** A Studio link that carries **`&field=<name>`**
+   (e.g. `field=callout`, `field=customFields[...]`) is an intended **`mas-field`** — no
+   variant needed, and correct authoring. A link with **no `field=`** is a full
+   **`merch-card`** and does need a variant.
+
+Milo routes these: `decorateAutoBlock` reroutes a `mas.adobe.com/studio.html` link with
+`field=` in the hash to the lightweight `mas-field` path instead of
+`merch-card-autoblock` (`libs/utils/utils.js`, the `if (key === 'merch-card-autoblock'
+&& url.hash.includes('field='))` branch; landed in **MWPW-202286 / milo PR #6463,
+2026-08-30**). If **every** authored reference to the culprit carries `field=` yet the
+page still logged a `merch-card` hydration failure, the page was served a **Milo build
+predating that reroute** (adobe.com's milo pin lags `main`). Verdict: **CODE / Milo
+rollout** — self-heals as the pin advances; confirm `adobe.com/libs/utils/utils.js`
+already contains the reroute. No content fix, and **do not** send the author a
+"pick a layout" call to action.
+
+## EDS / MEP related resources (for an authoring or MEP verdict)
+
+When the fix lives in Edge Delivery content or a personalization manifest, hand the
+owner concrete links, not just prose:
+
+- **The referer page source:** `<referer>.plain.html` — the authored blocks.
+- **The MEP manifest** driving the swap: the `*.json` referenced in the rendered page
+  (`experiences[].selector` → `experiences[].all`). Cite the exact replacement fragment
+  path that injects the culprit.
+- **The EDS fragment** that carries the merch link: `<host>/<path>` (rendered) and
+  `<host>/<path>.plain.html` (source). Prefer `main--<repo>--adobecom.aem.live`.
+- **The card in Studio:** the `#page=fragment-editor&fragmentId=<id>` deep link (above).
+- **MEP authoring guide:** https://milo.adobe.com/docs/authoring/features/personalization
+  (manifest actions: `replace`, `updateMetadata`, selectors, page filters).
+- If the swap targets the wrong fragment or a variation id, the fix is in the **manifest
+  row** (change `all`/`selector`), not the card — say which row.
+
 ## Decision table
 
 Ground truth for the merch-card messages is `web-components/src/hydrate.js`.
@@ -101,6 +174,7 @@ Ground truth for the merch-card messages is `web-components/src/hydrate.js`.
 |---|---|---|
 | `no template found in payload <id>` + culprit is a **variation** (promo/grouped — see signals above) | a variation is being rendered standalone; it has no variant because the base does | **AUTHORING** — a variation is being served directly (MEP/link points at the variation, not the base card) |
 | `no template found in payload <id>` + culprit is a **base card** | `fields.variant` is empty on the base fragment (`if (!variant) throw`) | **AUTHORING** — base card published with no card layout selected |
+| `merch-card[<id>]: … no template found` + the id is authored **only via `mas-field`** (`field=` links) / is a headless/field-only fragment | a field-only fragment was rendered as a full card by an old autoblock; it has no variant because it's not a card | **CODE / Milo rollout** — `field=` reroute (milo PR #6463 / MWPW-202286) not yet on the served build; self-heals. NOT authoring — see "Headless / field-only fragment rendered as a card" |
 | `variant mapping not found for <id>` | `fields.variant` is set but has no registered layout | **MIXED** — typo variant = authoring; brand-new variant = code (missing mapping) |
 | `Fragment is undefined` / `is missing 'fields'` | fetch returned empty/blank payload | **CODE / pipeline** (or deleted id) — check fetch status |
 | `AEM fragment cannot be loaded` | fetch failed | inspect `fetched_fragments.status` (below) |
@@ -138,11 +212,15 @@ without a card layout chosen, so it can't display.">
 2. <republish so shoppers see it>
 3. <check the other cards in the same set for the same gap, if relevant>
 
+**Open the card in Studio:** https://mas.adobe.com/studio.html#page=fragment-editor&fragmentId=<culprit-id>
+<one line per culprit fragment>
+
 Owner: <team/person who authors this content, if known>
 ```
 
 No MWPW code ticket for an authoring verdict. Do not mention `hydrate.js`, `variant`,
-etags, or HTTP codes.
+etags, or HTTP codes — but **do** include the Studio link(s) above; that is the author's
+one-click path to the card that needs fixing.
 
 ### When the verdict is CODE or MIXED
 
@@ -155,6 +233,7 @@ The reader is an engineer. Include the evidence:
 
 ### Evidence
 - Dominant message: "<msg>" — raw <count>/<N>, est. ~<100·count> occurrences
+- Culprit fragment: <id> → https://mas.adobe.com/studio.html#page=fragment-editor&fragmentId=<id>
 - Fetch health: <status / cdn / stale / retryCount / etag>
 - Suspect area: <io/www, hydrate.js, mas-commerce-service, …>
 - Note magnitude is a 1% sampling estimate; low-count secondary messages (raw <~10) are directional only.
