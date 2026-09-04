@@ -19,6 +19,29 @@ Each row is a client-side LANA event. The payload lives in `_raw` → JSON →
 `aem-fragment:retryCount`, `aem-fragment:etag`. The `message` field holds the
 merch-card error text.
 
+## Sampling — the counts are ~1% of reality
+
+**Critical: every count in the parser output is a ~1% sample, not a headcount.** MAS
+logs errors to LANA with `sampleRate: 1` (`web-components/src/lana.js`), and Milo's
+lana treats `sampleRate` as a *percent* — `sampleRate <= Math.random() * 100`
+(`libs/utils/lana.js`), so roughly 1 in 100 client error events is actually forwarded
+to Splunk. Info events (`errorType: 'i'`) use `implicitSampleRate: 1` — also ~1%.
+
+Consequences for every number you report:
+
+- **Scale up ~100×** for the real user-facing volume: a raw count of `k` ≈ `100·k`
+  actual events. Always say "estimated" and give a round figure, never a false-precise
+  one (`~64,000`, not `63,700`).
+- **State the imprecision.** Relative uncertainty ≈ `1/√k`. So `k=600` is ±~4% (solid),
+  `k=100` is ±~10%, `k=25` is ±~20%, and anything **below ~10 is not quantifiable** —
+  report it as "seen, a handful of times" and never scale it to a headline number.
+- The **verdict and classification never depend on scaling** — proportions between
+  messages are unaffected by uniform sampling. Scaling only changes how you describe
+  *magnitude/impact*. Do not let a scaled-up number inflate the severity of a
+  low-count signal.
+- Whenever you print a raw parser count, either scale it or flag it as a raw 1% sample.
+  Never present a raw count as the number of affected users.
+
 ## Workflow
 
 1. **Parse.** Run the bundled parser (do not re-implement it):
@@ -43,7 +66,8 @@ merch-card error text.
 4. **Check whether the culprit is a variation** (see "Variations must never be served
    directly" below). This changes both the root cause and who owns the fix.
 
-5. **Report** in the output format below. Lead with the verdict.
+5. **Report** in the output format below. Lead with the verdict. Present all volumes
+   as sampling-scaled estimates per the "Sampling" section — never bare 1% counts.
 
 ## Variations must never be served directly
 
@@ -102,7 +126,9 @@ short and human.
 ```
 ## <page URL> — content needs a fix
 
-Users on this page are seeing broken cards (<N> errors, <start>–<end>).
+Users on this page are seeing broken cards — an estimated <~100·N rounded> times
+over <start>–<end> (measured from a 1% sample, so treat it as a rough scale, not an
+exact count).
 
 **What's wrong:** <one plain sentence — e.g. "A card on this page was published
 without a card layout chosen, so it can't display.">
@@ -124,13 +150,14 @@ The reader is an engineer. Include the evidence:
 
 ```
 ## Splunk referer analysis — <referer base URL>
-**Window:** <start> → <end> · **Events:** <N> (<severity>) · **Locale(s):** <...>
+**Window:** <start> → <end> · **Events:** ~<100·N estimated> (raw sample <N>, ~1% sampling ⇒ ±~<1/√N>) · **Severity:** <...> · **Locale(s):** <...>
 **Verdict:** CODE | MIXED — <one-line root cause>
 
 ### Evidence
-- Dominant message: "<msg>" (<count>/<N>)
+- Dominant message: "<msg>" — raw <count>/<N>, est. ~<100·count> occurrences
 - Fetch health: <status / cdn / stale / retryCount / etag>
 - Suspect area: <io/www, hydrate.js, mas-commerce-service, …>
+- Note magnitude is a 1% sampling estimate; low-count secondary messages (raw <~10) are directional only.
 
 ### Calls to action
 1. <concrete engineering step>
